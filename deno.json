@@ -1,10 +1,10 @@
 {
   "tasks": {
-    "serve": "cd decision && swamp serve --host 127.0.0.1 --port 9797 --auth-mode none --no-schedule",
-    "api": "deno run --allow-net=127.0.0.1 --allow-env=SWAMP_URL,SWAMP_TOKEN,DECISION_LLM,PORT api/main.ts",
+    "serve": "cd protection && swamp serve --host 127.0.0.1 --port 9797 --auth-mode none --no-schedule",
+    "api": "deno run --allow-net=127.0.0.1 --allow-env=SWAMP_URL,SWAMP_TOKEN,PORT api/main.ts",
     "web": "cd web && deno task dev",
-    "test": "deno test --allow-read --allow-env --allow-net=127.0.0.1 decision/extensions api web/src",
-    "check": "deno check api/ decision/extensions/ && cd web && deno check src/main.tsx src/present_test.ts vite.config.ts",
+    "test": "deno test --allow-read --allow-env --allow-net=127.0.0.1 protection/extensions api web/src",
+    "check": "deno check api/ protection/extensions/ && cd web && deno check src/main.tsx src/present_test.ts vite.config.ts",
     "lint": "deno lint",
     "fmt": "deno fmt"
   },
@@ -16,17 +16,16 @@
     }
   },
   "exclude": [
-    "decision/.swamp",
-    "decision/.claude",
+    "protection/.swamp",
+    "protection/.claude",
     "web/node_modules",
     "web/dist"
   ],
   "fmt": {
     "exclude": [
-      "decision/models",
-      "decision/vaults",
-      "decision/workflows",
-      "decision/.swamp.yaml"
+      "protection/models",
+      "protection/workflows",
+      "protection/.swamp.yaml"
     ]
   }
 }
