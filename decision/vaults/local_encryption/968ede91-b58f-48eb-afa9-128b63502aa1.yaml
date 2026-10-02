@@ -1,0 +1,6 @@
+id: 968ede91-b58f-48eb-afa9-128b63502aa1
+name: decision-secrets
+type: local_encryption
+config:
+  auto_generate: true
+createdAt: '2026-10-02T10:27:17.668Z'
