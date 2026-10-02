@@ -5,7 +5,7 @@
   --card: #ffffff;
   --line: #e2e2dc;
   --accent: #2f6f4f;
-  --ai: #7a3fb0;
+  --external: #2b5fa8;
   --bad: #b03a2e;
   font-family: system-ui, sans-serif;
   color-scheme: light dark;
@@ -18,7 +18,7 @@
     --card: #20201e;
     --line: #34342f;
     --accent: #6fbf8f;
-    --ai: #b88ae0;
+    --external: #7aa7e8;
     --bad: #e07a6e;
   }
 }
@@ -49,8 +49,7 @@ label {
   gap: 4px;
   font-weight: 600;
 }
-input,
-textarea {
+input {
   font: inherit;
   font-weight: 400;
   padding: 8px;
@@ -86,20 +85,16 @@ button:disabled {
 .card.error h2 {
   color: var(--bad);
 }
-.decision {
-  font-size: 2em;
+.answer {
+  font-size: 3em;
   margin: 0 0 8px;
+  font-family: ui-monospace, monospace;
+}
+.answer.true {
   color: var(--accent);
 }
-.bar {
-  height: 8px;
-  background: var(--line);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.bar > div {
-  height: 100%;
-  background: var(--accent);
+.answer.false {
+  color: var(--bad);
 }
 h3 {
   margin: 20px 0 6px;
@@ -109,10 +104,6 @@ ul,
 ol {
   padding-left: 20px;
   margin: 0;
-}
-.checks {
-  list-style: none;
-  padding: 0;
 }
 .trace {
   margin-top: 20px;
@@ -138,8 +129,8 @@ ol {
   color: #fff;
   background: var(--accent);
 }
-.tag.ai {
-  background: var(--ai);
+.tag.external {
+  background: var(--external);
 }
 .step-error {
   font-size: 0.85em;

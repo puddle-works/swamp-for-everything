@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from "react";
-import { parseOptions, percent, stepKind } from "./present.ts";
+import { describeEvidence, type Evidence, stepKind } from "./present.ts";
 
 type Step = {
   name: string;
@@ -12,48 +12,36 @@ type Run = {
   workflow: string;
   status: string;
   durationMs: number;
-  llm: string;
   steps: Step[];
   artifact?: { model: string; name: string; version: number };
 };
-type Decision = {
-  decision: string;
-  reasoning: string;
-  evidence: string[];
-  confidence: number;
-  rejected: { option: string; reason: string }[];
-  checks: { name: string; passed: boolean; detail?: string }[];
-  ai: { model: string; rawResponse: string };
+type Answer = {
+  url: string;
+  repo: string;
+  defaultBranch: string;
+  protected: boolean;
+  evidence: Evidence;
+  checkedAt: string;
   run: Run;
 };
 type Failure = { error: string; failedStep?: string; run?: Run };
 
 export function App() {
-  const [question, setQuestion] = useState(
-    "Which database should we use for the orders service?",
-  );
-  const [context, setContext] = useState(
-    "Orders need ACID transactions and joins across customers and invoices. The team has run PostgreSQL in production for years. PostgreSQL also fits our reporting tools. MongoDB was suggested for flexible schemas.",
-  );
-  const [options, setOptions] = useState("MongoDB\nPostgreSQL\nDynamoDB");
+  const [url, setUrl] = useState("https://github.com/denoland/deno");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<Decision | null>(null);
+  const [result, setResult] = useState<Answer | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
 
-  async function decide(e: FormEvent) {
+  async function check(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setResult(null);
     setFailure(null);
     try {
-      const res = await fetch("/api/decide", {
+      const res = await fetch("/api/protection", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          question,
-          context,
-          options: parseOptions(options),
-        }),
+        body: JSON.stringify({ url }),
       });
       const body = await res.json();
       if (res.ok) setResult(body);
@@ -67,38 +55,23 @@ export function App() {
 
   return (
     <main>
-      <h1>Decision</h1>
+      <h1>Branch protection</h1>
       <p className="muted">
-        This page is only a form. The decision is made by the Swamp workflow
-        {" "}
-        <code>decide</code>.
+        This page is only a form. The answer comes from the Swamp workflow{" "}
+        <code>branch-protection</code>.
       </p>
-      <form onSubmit={decide}>
+      <form onSubmit={check}>
         <label>
-          Question
+          Public GitHub repository
           <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-          />
-        </label>
-        <label>
-          Context
-          <textarea
-            rows={4}
-            value={context}
-            onChange={(e) => setContext(e.target.value)}
-          />
-        </label>
-        <label>
-          Options <span className="muted">(one per line, at least two)</span>
-          <textarea
-            rows={4}
-            value={options}
-            onChange={(e) => setOptions(e.target.value)}
+            type="url"
+            value={url}
+            placeholder="https://github.com/owner/repo"
+            onChange={(e) => setUrl(e.target.value)}
           />
         </label>
         <button type="submit" disabled={busy}>
-          {busy ? "Deciding…" : "Decide"}
+          {busy ? "Checking…" : "Check"}
         </button>
       </form>
 
@@ -114,46 +87,17 @@ export function App() {
 
       {result && (
         <section className="card">
-          <p className="muted">Decision</p>
-          <h2 className="decision">{result.decision}</h2>
-          <div className="bar" title={percent(result.confidence)}>
-            <div style={{ width: percent(result.confidence) }} />
-          </div>
-          <p className="muted">confidence {percent(result.confidence)}</p>
-
-          <h3>Reasoning</h3>
-          <p>{result.reasoning}</p>
-
-          <h3>Evidence</h3>
-          {result.evidence.length
-            ? <ul>{result.evidence.map((e, i) => <li key={i}>{e}</li>)}</ul>
-            : <p className="muted">none cited</p>}
-
-          <h3>Rejected</h3>
-          <ul>
-            {result.rejected.map((r) => (
-              <li key={r.option}>
-                <strong>{r.option}</strong>: {r.reason}
-              </li>
-            ))}
-          </ul>
-
-          <h3>Checks</h3>
-          <ul className="checks">
-            {result.checks.map((c) => (
-              <li key={c.name}>
-                {c.passed ? "✓" : "✗"} {c.name}
-                {c.detail ? ` (${c.detail})` : ""}
-              </li>
-            ))}
-          </ul>
-
+          <p className="muted">
+            Is the default branch of <code>{result.repo}</code> protected?
+          </p>
+          <h2 className={`answer ${result.protected}`}>
+            {String(result.protected)}
+          </h2>
+          <p>
+            Default branch <code>{result.defaultBranch}</code>:{" "}
+            {describeEvidence(result.evidence)}.
+          </p>
           <Trace run={result.run} />
-
-          <details>
-            <summary>Raw AI output ({result.ai.model})</summary>
-            <pre>{result.ai.rawResponse}</pre>
-          </details>
         </section>
       )}
     </main>
@@ -167,7 +111,7 @@ function Trace({ run }: { run: Run }) {
       <p className="muted">
         workflow <code>{run.workflow}</code> · run <code>{run.runId}</code> ·
         {" "}
-        {run.status} in {run.durationMs}ms · llm <code>{run.llm}</code>
+        {run.status} in {run.durationMs}ms
       </p>
       <ol>
         {run.steps.map((s) => {
@@ -175,7 +119,7 @@ function Trace({ run }: { run: Run }) {
           return (
             <li key={s.name} className={`step ${s.status}`}>
               <span className={`tag ${kind}`}>
-                {kind === "ai" ? "AI" : "deterministic"}
+                {kind === "external" ? "GitHub API" : "deterministic"}
               </span>
               <code>{s.name}</code> {s.status}
               {s.durationMs !== undefined ? ` · ${s.durationMs}ms` : ""}
