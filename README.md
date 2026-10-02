@@ -2,9 +2,7 @@
 
 A place to test different ways of using [Swamp](https://swamp.club).
 
-Spike 1 (Decision API) is in progress.
-
-## Spike 2: branch-protection check
+## Spike 1: branch-protection check
 
 A fully deterministic API — no LLM anywhere. It accepts a GitHub repo URL and
 returns whether that repo's default branch has branch protection (classic
