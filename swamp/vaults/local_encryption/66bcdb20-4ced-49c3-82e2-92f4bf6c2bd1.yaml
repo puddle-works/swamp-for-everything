@@ -1,0 +1,6 @@
+id: 66bcdb20-4ced-49c3-82e2-92f4bf6c2bd1
+name: github
+type: local_encryption
+config:
+  auto_generate: true
+createdAt: '2026-10-02T14:38:59.244Z'

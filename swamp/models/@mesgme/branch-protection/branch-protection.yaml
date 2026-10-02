@@ -1,0 +1,9 @@
+type: '@mesgme/branch-protection'
+typeVersion: 2026.10.02.1
+id: 123bf25d-8390-4156-a5dd-6077acf842a6
+name: branch-protection
+version: 1
+tags: {}
+globalArguments:
+  token: ${{ vault.get(github, GITHUB_TOKEN) }}
+methods: {}

@@ -1,0 +1,29 @@
+id: 96150b9f-4324-48ab-8937-2e30f02378db
+name: branch-protection
+description: >-
+  Deterministic branch-protection check. Given a GitHub repository URL, ask the
+  GitHub API whether the repo's default branch has classic protection or is
+  covered by a repository ruleset, and record the boolean answer.
+tags:
+  app: branch-protection
+inputs:
+  type: object
+  properties:
+    url:
+      type: string
+      description: GitHub repository URL (https://github.com/owner/repo)
+  required: [url]
+jobs:
+  - name: check
+    description: Check branch protection for the repository's default branch
+    steps:
+      - name: check
+        description: "[deterministic] query the GitHub API and write a result"
+        task:
+          type: model_method
+          modelIdOrName: branch-protection
+          methodName: check
+          inputs:
+            url: ${{ inputs.url }}
+    dependsOn: []
+version: 1

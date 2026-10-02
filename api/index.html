@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Branch protection check</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        font: 16px/1.5 system-ui, sans-serif;
+        max-width: 40rem;
+        margin: 4rem auto;
+        padding: 0 1rem;
+      }
+      form { display: flex; gap: .5rem; }
+      input {
+        flex: 1;
+        padding: .6rem .8rem;
+        font: inherit;
+        border: 1px solid #888;
+        border-radius: 6px;
+      }
+      button {
+        padding: .6rem 1.1rem;
+        font: inherit;
+        border: 0;
+        border-radius: 6px;
+        background: #2563eb;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:disabled { opacity: .6; cursor: progress; }
+      #result { margin-top: 1.5rem; font-size: 1.4rem; }
+      .protected { color: #16a34a; }
+      .unprotected { color: #dc2626; }
+      .error { color: #dc2626; font-size: 1rem; }
+      code { background: #8882; padding: .1rem .3rem; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Branch protection check</h1>
+    <p>Does this repository's default branch have protection enabled?</p>
+    <form id="form">
+      <input
+        id="url"
+        type="url"
+        required
+        placeholder="https://github.com/owner/repo"
+        value="https://github.com/mesgme/swamp-for-everything"
+      />
+      <button id="check" type="submit">Check</button>
+    </form>
+    <div id="result"></div>
+    <script>
+      const form = document.getElementById("form");
+      const input = document.getElementById("url");
+      const button = document.getElementById("check");
+      const result = document.getElementById("result");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        button.disabled = true;
+        result.className = "";
+        result.textContent = "Checking…";
+        try {
+          const res = await fetch("/check", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ url: input.value }),
+          });
+          const body = await res.json();
+          if (!res.ok) throw new Error(body.error || res.statusText);
+          result.className = body.protected ? "protected" : "unprotected";
+          result.innerHTML = "<code>" + body.repo + "</code> default branch " +
+            "<code>" + body.branch + "</code>: " +
+            (body.protected ? "protected ✓" : "not protected ✗");
+        } catch (err) {
+          result.className = "error";
+          result.textContent = "Error: " + err.message;
+        } finally {
+          button.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
