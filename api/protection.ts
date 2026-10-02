@@ -1,10 +1,10 @@
 /**
- * POST /api/decide — the only glue between HTTP and Swamp.
+ * POST /api/protection — the only glue between HTTP and Swamp.
  *
  * Swamp serve has no "run a workflow and return its output" HTTP route, so
  * this adapter speaks its WebSocket API: workflow.run (waits for completion),
- * then data.get for the typed `decision` artifact the run produced.
- * It holds no decision logic; all of that lives in the workflow.
+ * then data.get for the typed `protection` artifact the run produced.
+ * It holds no GitHub logic; all of that lives in the workflow.
  *
  * @module
  */
@@ -22,21 +22,14 @@ export interface SwampLike {
   request<T>(type: string, payload?: Record<string, unknown>): Promise<T>;
 }
 
-export interface DecideDeps {
+export interface ProtectionDeps {
   /** Returns a connected client; rejects if swamp serve is unreachable. */
   connect: () => Promise<SwampLike>;
-  defaultLlm: string;
 }
 
-const WORKFLOW = "decide";
-const LLMS = ["stub", "claude"];
-
-type DecideRequest = {
-  question: string;
-  context: string;
-  options: string[];
-  llm: string;
-};
+const WORKFLOW = "branch-protection";
+/** A failure here means the caller sent a link we cannot use. */
+const INPUT_STEP = "parse";
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -44,45 +37,24 @@ const json = (status: number, body: unknown) =>
     headers: { "content-type": "application/json" },
   });
 
-function parseRequest(
-  body: unknown,
-  defaultLlm: string,
-): DecideRequest | string {
-  if (!body || typeof body !== "object") return "body must be a JSON object";
-  const b = body as Record<string, unknown>;
-  if (typeof b.question !== "string" || !b.question.trim()) {
-    return "question is required";
+function parseRequest(body: unknown): { url: string } | string {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return "body must be a JSON object";
   }
-  if (
-    !Array.isArray(b.options) ||
-    !b.options.every((o) => typeof o === "string") ||
-    b.options.filter((o) => o.trim()).length < 2
-  ) {
-    return "options must be an array of at least two strings";
+  const { url } = body as Record<string, unknown>;
+  if (typeof url !== "string" || !url.trim()) {
+    return "url is required: a link to a public GitHub repository";
   }
-  if (b.context !== undefined && typeof b.context !== "string") {
-    return "context must be a string";
-  }
-  const llm = b.llm ?? defaultLlm;
-  if (typeof llm !== "string" || !LLMS.includes(llm)) {
-    return `llm must be one of ${LLMS.join(", ")}`;
-  }
-  return {
-    question: b.question,
-    context: (b.context as string | undefined) ?? "",
-    options: b.options as string[],
-    llm,
-  };
+  return { url };
 }
 
-function trace(run: WorkflowRunView, llm: string) {
+function trace(run: WorkflowRunView) {
   const steps = run.jobs.flatMap((j) => j.steps);
   return {
     runId: run.id,
     workflow: run.workflowName,
     status: run.status,
     durationMs: run.duration,
-    llm,
     steps: steps.map((s) => ({
       name: s.name,
       status: s.status,
@@ -92,9 +64,9 @@ function trace(run: WorkflowRunView, llm: string) {
   };
 }
 
-export async function handleDecide(
+export async function handleProtection(
   req: Request,
-  deps: DecideDeps,
+  deps: ProtectionDeps,
 ): Promise<Response> {
   let body: unknown;
   try {
@@ -102,7 +74,7 @@ export async function handleDecide(
   } catch {
     return json(400, { error: "body is not valid JSON" });
   }
-  const parsed = parseRequest(body, deps.defaultLlm);
+  const parsed = parseRequest(body);
   if (typeof parsed === "string") return json(400, { error: parsed });
 
   let client: SwampLike;
@@ -124,20 +96,20 @@ export async function handleDecide(
 
     if (run.status !== "succeeded") {
       const failed = steps.find((s) => s.status === "failed");
-      return json(502, {
+      return json(failed?.name === INPUT_STEP ? 400 : 502, {
         error: failed?.error ?? `workflow ${run.status}`,
         failedStep: failed?.name,
-        run: trace(run, parsed.llm),
+        run: trace(run),
       });
     }
 
     const artifact = steps.flatMap((s) => s.dataArtifacts ?? []).find((a) =>
-      a.tags.specName === "decision"
+      a.tags.specName === "protection"
     );
     if (!artifact) {
       return json(502, {
-        error: "run succeeded but produced no decision artifact",
-        run: trace(run, parsed.llm),
+        error: "run succeeded but produced no protection artifact",
+        run: trace(run),
       });
     }
     const model = artifact.tags.modelName;
@@ -150,14 +122,20 @@ export async function handleDecide(
         includeContent: true,
       },
     );
-    const decision = JSON.parse(got.data.content ?? "null");
-    const { llmModel, rawResponse, resolvedAt: _, ...result } = decision;
+    const result = JSON.parse(got.data.content ?? "null");
 
     return json(200, {
-      ...result,
-      ai: { model: llmModel, rawResponse },
+      url: parsed.url,
+      repo: result.fullName,
+      defaultBranch: result.defaultBranch,
+      protected: result.protected,
+      evidence: {
+        branchProtected: result.branchProtected,
+        rules: result.rules,
+      },
+      checkedAt: result.checkedAt,
       run: {
-        ...trace(run, parsed.llm),
+        ...trace(run),
         artifact: {
           model,
           name: artifact.name,
