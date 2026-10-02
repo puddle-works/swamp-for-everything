@@ -9,12 +9,24 @@
     "fmt": "deno fmt"
   },
   "lint": {
-    "rules": { "exclude": ["no-import-prefix"] }
+    "rules": {
+      "exclude": [
+        "no-import-prefix"
+      ]
+    }
   },
   "exclude": [
     "decision/.swamp",
     "decision/.claude",
     "web/node_modules",
     "web/dist"
-  ]
+  ],
+  "fmt": {
+    "exclude": [
+      "decision/models",
+      "decision/vaults",
+      "decision/workflows",
+      "decision/.swamp.yaml"
+    ]
+  }
 }

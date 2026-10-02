@@ -1,0 +1,44 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@std/assert@1": "1.0.19",
+    "jsr:@std/assert@1.0.19": "1.0.19",
+    "jsr:@std/internal@^1.0.12": "1.0.12",
+    "jsr:@swamp-club/swamp-lib@0.20260928.23": "0.20260928.23",
+    "jsr:@swamp-club/swamp-testing@0": "0.20260625.23",
+    "npm:@marcbachmann/cel-js@7.6.1": "7.6.1",
+    "npm:zod@4": "4.5.4",
+    "npm:zod@^4.3.6": "4.5.4"
+  },
+  "jsr": {
+    "@std/assert@1.0.19": {
+      "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    },
+    "@swamp-club/swamp-lib@0.20260928.23": {
+      "integrity": "db74980a42fbac1315bba9d5166bf977d8fe79a5f8bbfc3ad5d5957e0a0ac3dd"
+    },
+    "@swamp-club/swamp-testing@0.20260625.23": {
+      "integrity": "0e4c0f26cdaa62d147616024f2368e478fe2e40a92672d420d4ff2152b94219a",
+      "dependencies": [
+        "jsr:@std/assert@1.0.19",
+        "npm:@marcbachmann/cel-js",
+        "npm:zod@^4.3.6"
+      ]
+    }
+  },
+  "npm": {
+    "@marcbachmann/cel-js@7.6.1": {
+      "integrity": "sha512-YyY8yiDU07ByKb2rJUoNgMAkYeeDvkdrONBREV2MP9siAW7yNft0KfbIoonWTIMY0fGtv8og0EhzKx3Xsi1Nmg==",
+      "bin": true
+    },
+    "zod@4.5.4": {
+      "integrity": "sha512-sC95tT5iHHH9gtpj6A81kh+NEaRAUFN+qlUPDUbRfOMvNf5QCBqsb3WgvnpVtK5Y+4UfA6KqufotuTvMGiTlsA=="
+    }
+  }
+}
