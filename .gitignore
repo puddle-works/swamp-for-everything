@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+# swamp runtime state (definitions are committed; local runtime/secret data is not)
+decision/.swamp/
+decision/.swamp-*/
+.env
