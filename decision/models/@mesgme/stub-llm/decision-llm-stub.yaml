@@ -1,0 +1,9 @@
+type: '@mesgme/stub-llm'
+typeVersion: 2026.10.02.1
+id: 7c681db6-a979-40ff-a1f0-a3c31ae25d7d
+name: decision-llm-stub
+version: 1
+tags: {}
+globalArguments:
+  model: stub-heuristic-v1
+methods: {}

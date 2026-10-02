@@ -1,0 +1,90 @@
+id: d12fbf08-26cc-4c0c-8ffc-6d7d9bb9e017
+name: decide
+description: >-
+  Decision API. frame (deterministic) -> ask (AI) -> resolve (deterministic)
+  -> check (deterministic guardrail). The workflow is the application; the
+  LLM is one swappable component inside it.
+tags:
+  app: decision
+inputs:
+  type: object
+  properties:
+    question:
+      type: string
+      description: The decision to make
+    context:
+      type: string
+      description: Facts and constraints relevant to the decision
+      default: ""
+    options:
+      type: array
+      items:
+        type: string
+      minItems: 2
+      description: Candidate answers
+    llm:
+      type: string
+      enum: [stub, claude]
+      default: stub
+      description: Which LLM component answers (model definition decision-llm-<llm>)
+  required: [question, options]
+jobs:
+  - name: decide
+    description: Frame the request, ask the LLM, resolve and check the answer
+    steps:
+      - name: frame
+        description: "[deterministic] validate the request and build the prompt"
+        task:
+          type: model_method
+          modelIdOrName: decision-framer
+          methodName: frame
+          inputs:
+            question: ${{ inputs.question }}
+            context: ${{ inputs.context }}
+            options: ${{ inputs.options }}
+
+      - name: ask
+        description: "[AI] the LLM component answers in free text"
+        task:
+          type: model_method
+          modelIdOrName: decision-llm-${{ inputs.llm }}
+          methodName: generate
+          inputs:
+            prompt: ${{ steps.frame.outputs.prompt }}
+        dependsOn:
+          - step: frame
+            condition:
+              type: succeeded
+
+      - name: resolve
+        description: "[deterministic] parse, validate and normalise into a typed decision"
+        task:
+          type: model_method
+          modelIdOrName: decision-resolver
+          methodName: resolve
+          inputs:
+            question: ${{ steps.frame.outputs.question }}
+            options: ${{ steps.frame.outputs.options }}
+            response: ${{ steps.ask.outputs.response }}
+            llmModel: ${{ steps.ask.outputs.model }}
+        dependsOn:
+          - step: ask
+            condition:
+              type: succeeded
+
+      - name: check
+        description: "[deterministic] guardrail: the decision is one of the framed options"
+        task:
+          type: assert
+          expr: >-
+            steps.resolve.outputs.decision in steps.frame.outputs.options &&
+            steps.resolve.outputs.confidence >= 0.0 &&
+            steps.resolve.outputs.confidence <= 1.0
+          message: decision must be one of the options with confidence in [0, 1]
+          severity: high
+        dependsOn:
+          - step: resolve
+            condition:
+              type: succeeded
+    dependsOn: []
+version: 1
