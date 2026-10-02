@@ -1,0 +1,20 @@
+{
+  "tasks": {
+    "serve": "cd decision && swamp serve --host 127.0.0.1 --port 9797 --auth-mode none --no-schedule",
+    "api": "deno run --allow-net=127.0.0.1 --allow-env=SWAMP_URL,SWAMP_TOKEN,DECISION_LLM,PORT api/main.ts",
+    "web": "cd web && deno task dev",
+    "test": "deno test --allow-read --allow-env --allow-net=127.0.0.1 decision/extensions api",
+    "check": "deno check api/ decision/extensions/",
+    "lint": "deno lint",
+    "fmt": "deno fmt"
+  },
+  "lint": {
+    "rules": { "exclude": ["no-import-prefix"] }
+  },
+  "exclude": [
+    "decision/.swamp",
+    "decision/.claude",
+    "web/node_modules",
+    "web/dist"
+  ]
+}
