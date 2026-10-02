@@ -1,0 +1,153 @@
+:root {
+  --bg: #fafaf8;
+  --fg: #1d1d1b;
+  --muted: #6b6b66;
+  --card: #ffffff;
+  --line: #e2e2dc;
+  --accent: #2f6f4f;
+  --ai: #7a3fb0;
+  --bad: #b03a2e;
+  font-family: system-ui, sans-serif;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161615;
+    --fg: #ececea;
+    --muted: #9a9a94;
+    --card: #20201e;
+    --line: #34342f;
+    --accent: #6fbf8f;
+    --ai: #b88ae0;
+    --bad: #e07a6e;
+  }
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+h1 {
+  margin-bottom: 4px;
+}
+.muted {
+  color: var(--muted);
+  font-size: 0.9em;
+}
+form {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0 24px;
+}
+label {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+}
+input,
+textarea {
+  font: inherit;
+  font-weight: 400;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--fg);
+}
+button {
+  justify-self: start;
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 20px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+.card.error {
+  border-color: var(--bad);
+}
+.card.error h2 {
+  color: var(--bad);
+}
+.decision {
+  font-size: 2em;
+  margin: 0 0 8px;
+  color: var(--accent);
+}
+.bar {
+  height: 8px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bar > div {
+  height: 100%;
+  background: var(--accent);
+}
+h3 {
+  margin: 20px 0 6px;
+  font-size: 1em;
+}
+ul,
+ol {
+  padding-left: 20px;
+  margin: 0;
+}
+.checks {
+  list-style: none;
+  padding: 0;
+}
+.trace {
+  margin-top: 20px;
+  border-top: 1px dashed var(--line);
+  padding-top: 4px;
+}
+.step {
+  margin: 4px 0;
+}
+.step.failed {
+  color: var(--bad);
+}
+.step.skipped {
+  color: var(--muted);
+}
+.tag {
+  display: inline-block;
+  font-size: 0.75em;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+  color: #fff;
+  background: var(--accent);
+}
+.tag.ai {
+  background: var(--ai);
+}
+.step-error {
+  font-size: 0.85em;
+  margin-left: 4px;
+  overflow-wrap: anywhere;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.85em;
+}

@@ -1,0 +1,22 @@
+{
+  "tasks": {
+    "dev": "deno run -A npm:vite@^6",
+    "build": "deno run -A npm:vite@^6 build"
+  },
+  "nodeModulesDir": "auto",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "jsxImportSourceTypes": "@types/react",
+    "lib": ["dom", "dom.iterable", "deno.ns"]
+  },
+  "imports": {
+    "@vitejs/plugin-react": "npm:@vitejs/plugin-react@^4",
+    "@types/react": "npm:@types/react@^18",
+    "react": "npm:react@^18",
+    "react/jsx-runtime": "npm:react@^18/jsx-runtime",
+    "react-dom": "npm:react-dom@^18",
+    "react-dom/client": "npm:react-dom@^18/client",
+    "vite": "npm:vite@^6"
+  }
+}

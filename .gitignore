@@ -6,3 +6,4 @@ dist/
 decision/.swamp/
 decision/.swamp-*/
 .env
+.vite/

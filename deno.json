@@ -3,8 +3,8 @@
     "serve": "cd decision && swamp serve --host 127.0.0.1 --port 9797 --auth-mode none --no-schedule",
     "api": "deno run --allow-net=127.0.0.1 --allow-env=SWAMP_URL,SWAMP_TOKEN,DECISION_LLM,PORT api/main.ts",
     "web": "cd web && deno task dev",
-    "test": "deno test --allow-read --allow-env --allow-net=127.0.0.1 decision/extensions api",
-    "check": "deno check api/ decision/extensions/",
+    "test": "deno test --allow-read --allow-env --allow-net=127.0.0.1 decision/extensions api web/src",
+    "check": "deno check api/ decision/extensions/ && cd web && deno check src/main.tsx src/present_test.ts vite.config.ts",
     "lint": "deno lint",
     "fmt": "deno fmt"
   },
