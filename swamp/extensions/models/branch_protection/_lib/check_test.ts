@@ -192,6 +192,78 @@ Deno.test("checkProtection throws when the repo lookup fails", async () => {
   );
 });
 
+Deno.test("checkProtection fails instead of reporting unprotected when the branch call errors", async () => {
+  const { fetch } = fakeFetch({
+    "/repos/owner/repo": () => jsonResponse(200, { default_branch: "main" }),
+    "/repos/owner/repo/branches/main": () =>
+      jsonResponse(403, { message: "rate limit exceeded" }),
+    "/repos/owner/repo/rules/branches/main": () => jsonResponse(200, []),
+  });
+
+  await assertRejects(
+    () =>
+      checkProtection(fetch, "test-token", { owner: "owner", repo: "repo" }),
+    Error,
+    "403",
+  );
+});
+
+Deno.test("checkProtection fails instead of reporting unprotected when the rules call errors", async () => {
+  const { fetch } = fakeFetch({
+    "/repos/owner/repo": () => jsonResponse(200, { default_branch: "main" }),
+    "/repos/owner/repo/branches/main": () =>
+      jsonResponse(200, { name: "main", protected: false }),
+    "/repos/owner/repo/rules/branches/main": () =>
+      jsonResponse(500, { message: "server error" }),
+  });
+
+  await assertRejects(
+    () =>
+      checkProtection(fetch, "test-token", { owner: "owner", repo: "repo" }),
+    Error,
+    "500",
+  );
+});
+
+Deno.test("checkProtection treats a rules 404 as no rules", async () => {
+  const { fetch } = fakeFetch({
+    "/repos/owner/repo": () => jsonResponse(200, { default_branch: "main" }),
+    "/repos/owner/repo/branches/main": () =>
+      jsonResponse(200, { name: "main", protected: false }),
+  });
+
+  const result = await checkProtection(fetch, "test-token", {
+    owner: "owner",
+    repo: "repo",
+  });
+
+  assertEquals(result.protected, false);
+});
+
+Deno.test("checkProtection URL-encodes a default branch containing a slash", async () => {
+  const { fetch, calls } = fakeFetch({
+    "/repos/owner/repo": () =>
+      jsonResponse(200, { default_branch: "release/1.0" }),
+    "/repos/owner/repo/branches/release%2F1.0": () =>
+      jsonResponse(200, { name: "release/1.0", protected: true }),
+  });
+
+  const result = await checkProtection(fetch, "test-token", {
+    owner: "owner",
+    repo: "repo",
+  });
+
+  assertEquals(result, {
+    repo: "owner/repo",
+    branch: "release/1.0",
+    protected: true,
+  });
+  assertEquals(calls, [
+    "/repos/owner/repo",
+    "/repos/owner/repo/branches/release%2F1.0",
+  ]);
+});
+
 Deno.test("checkProtection skips the ruleset call when already protected", async () => {
   const { fetch, calls } = fakeFetch({
     "/repos/owner/repo": () => jsonResponse(200, { default_branch: "main" }),

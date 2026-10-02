@@ -89,6 +89,16 @@ function messageOf(body: unknown): string {
   return "request failed";
 }
 
+/** A 404 means "not there"; any other failure must not become an answer. */
+function failUnlessOkOr404(
+  res: { ok: boolean; status: number; body: unknown },
+  what: string,
+): void {
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`${what}: ${res.status} ${messageOf(res.body)}`);
+  }
+}
+
 /**
  * Decide whether a repository's default branch is protected, covering both
  * classic branch protection and repository rulesets.
@@ -97,9 +107,9 @@ function messageOf(body: unknown): string {
  *   2. GET /repos/{o}/{r}/branches/{branch}  -> .protected
  *   3. GET /repos/{o}/{r}/rules/branches/{b} -> >=1 rule
  *
- * Steps 2 and 3 are read-only and need no admin access. A missing branch or
- * rules endpoint counts as "no protection" from that source rather than an
- * error; only the initial repo lookup failing aborts the check.
+ * Steps 2 and 3 are read-only and need no admin access. A 404 from either
+ * counts as "no protection" from that source. Any other error aborts the
+ * check, so a refused or failed call never turns into a wrong `false`.
  */
 export async function checkProtection(
   fetch: FetchLike,
@@ -119,12 +129,15 @@ export async function checkProtection(
     throw new Error(`repos/${slug}: response had no default_branch`);
   }
 
+  const branchPath = encodeURIComponent(branch);
+
   let protectedBranch = false;
   const branchRes = await getJson(
     fetch,
-    `/repos/${slug}/branches/${branch}`,
+    `/repos/${slug}/branches/${branchPath}`,
     token,
   );
+  failUnlessOkOr404(branchRes, `repos/${slug}/branches/${branch}`);
   if (branchRes.ok) {
     protectedBranch =
       (branchRes.body as { protected?: unknown })?.protected === true;
@@ -134,9 +147,10 @@ export async function checkProtection(
   if (!protectedBranch) {
     const rulesRes = await getJson(
       fetch,
-      `/repos/${slug}/rules/branches/${branch}`,
+      `/repos/${slug}/rules/branches/${branchPath}`,
       token,
     );
+    failUnlessOkOr404(rulesRes, `repos/${slug}/rules/branches/${branch}`);
     if (rulesRes.ok && Array.isArray(rulesRes.body)) {
       protectedByRuleset = rulesRes.body.length >= 1;
     }
