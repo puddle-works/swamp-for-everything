@@ -1,8 +1,0 @@
-type: '@mesgme/decision'
-typeVersion: 2026.10.02.1
-id: 8cec8d53-ca61-45bf-8b8a-c47062261a4e
-name: decision-resolver
-version: 1
-tags: {}
-globalArguments: {}
-methods: {}

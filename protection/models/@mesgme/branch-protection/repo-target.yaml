@@ -1,0 +1,8 @@
+type: '@mesgme/branch-protection'
+typeVersion: 2026.10.02.1
+id: 7496c15a-750d-4615-8662-986f7591aac9
+name: repo-target
+version: 1
+tags: {}
+globalArguments: {}
+methods: {}

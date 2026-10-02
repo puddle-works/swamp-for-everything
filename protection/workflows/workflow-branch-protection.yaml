@@ -1,0 +1,58 @@
+id: c3f852f9-94c2-4775-aafe-e5108242897a
+name: branch-protection
+description: >-
+  Branch protection check. parse (deterministic) -> inspect (external: GitHub
+  REST API) -> check (deterministic guardrail). Given a link to a public
+  GitHub repo, answers true or false: is its default branch protected?
+tags:
+  app: branch-protection
+inputs:
+  type: object
+  properties:
+    url:
+      type: string
+      description: Link to a public GitHub repository
+  required: [url]
+jobs:
+  - name: answer
+    description: Parse the link, ask GitHub, check the answer
+    steps:
+      - name: parse
+        description: "[deterministic] turn the link into owner/repo"
+        task:
+          type: model_method
+          modelIdOrName: repo-target
+          methodName: parse
+          inputs:
+            url: ${{ inputs.url }}
+
+      - name: inspect
+        description: "[external] GitHub REST API: default branch protection and rulesets"
+        task:
+          type: model_method
+          modelIdOrName: repo-protection
+          methodName: inspect
+          inputs:
+            owner: ${{ steps.parse.outputs.owner }}
+            repo: ${{ steps.parse.outputs.repo }}
+        dependsOn:
+          - step: parse
+            condition:
+              type: succeeded
+
+      - name: check
+        description: "[deterministic] guardrail: the answer matches the evidence"
+        task:
+          type: assert
+          expr: >-
+            steps.inspect.outputs.protected ==
+            (steps.inspect.outputs.branchProtected ||
+            size(steps.inspect.outputs.rules) > 0)
+          message: protected must be true exactly when branch protection or a ruleset applies
+          severity: high
+        dependsOn:
+          - step: inspect
+            condition:
+              type: succeeded
+    dependsOn: []
+version: 1
