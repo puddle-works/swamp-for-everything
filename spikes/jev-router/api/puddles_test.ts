@@ -105,6 +105,10 @@ Deno.test("raise creates, drafts and submits a puddle named from the sourceRef",
     true,
   );
   assertEquals(inputs.currentProcess.includes("0.92"), true);
+  assertEquals(
+    inputs.problemDescription.includes("spikes/jev-router/api/registry.ts"),
+    true,
+  );
 });
 
 Deno.test("raise only raises once per sourceRef, then counts repeats", async () => {

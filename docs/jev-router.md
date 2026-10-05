@@ -250,8 +250,9 @@ puddles. It needs no change on the caller's side beyond the base URL.
 **What it is NOT:** a general registry editor, a UI, or several checks. It uses
 one check (branch protection), `noul` only, and runs on localhost.
 
-1. **Router API**: `POST /v1/systemone` in `spikes/branch-protection-api/api/`, next to spike 1's `/check`.
-   Copy the request/response schemas from `@swamp/typesafe-ai`.
+1. **Router API**: `POST /v1/systemone` in its own spike, `spikes/jev-router/`,
+   served at its own URL (`http://127.0.0.1:8788`). Its check runs on spike 1's
+   swamp serve. Copy the request/response schemas from `@swamp/typesafe-ai`.
 2. **Registry**: one entry, mapping "Is the default branch of this repository
    protected?" to the `branch-protection` workflow, with the GitHub URL taken
    from `state`.

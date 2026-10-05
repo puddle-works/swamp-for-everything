@@ -3,7 +3,7 @@
   "info": {
     "title": "Branch-protection check",
     "version": "1.0.0",
-    "description": "Deterministic check of whether a GitHub repository's default branch is protected (classic branch protection or a repository ruleset). The answer comes from the `branch-protection` swamp workflow; this API is thin glue over swamp serve. `POST /v1/systemone` is the Jev router: TypeSafe's System One (Jev) API, answered by swamp where a check exists and by Jev otherwise (see docs/jev-router.md)."
+    "description": "Deterministic check of whether a GitHub repository's default branch is protected (classic branch protection or a repository ruleset). The answer comes from the `branch-protection` swamp workflow; this API is thin glue over swamp serve."
   },
   "servers": [{ "url": "http://127.0.0.1:8787" }],
   "security": [],
@@ -100,111 +100,6 @@
           }
         }
       }
-    },
-    "/v1/systemone": {
-      "post": {
-        "operationId": "systemOne",
-        "summary": "Jev-compatible evaluation, answered by swamp where a check exists",
-        "description": "Same request and response as Jev's `POST /v1/systemone` (https://docs.typesafe.ai/api.md). A question that matches a registered check exactly (type and instructions, ignoring case and spacing) and whose inputs are in `state` is answered by its swamp workflow with certainty (`noul` 1 or 0). Everything else goes to Jev in one call with the caller's `Authorization` header. If Jev rates a question with no check at least 0.8 likely to be answerable by code, a puddle asking for the check is raised after the reply. When Jev is not called, `model` echoes the request and `usage` is 0/0.",
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SystemOneRequest"
-              },
-              "example": {
-                "state": "The repository https://github.com/octocat/Hello-World ...",
-                "model": "jev-1.13-free",
-                "questions": {
-                  "protected": {
-                    "type": "noul",
-                    "instructions": "Is the default branch of this repository protected?"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "One answer per question, under the caller's ids.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SystemOneResponse"
-                },
-                "example": {
-                  "model": "jev-1.13-free",
-                  "answers": {
-                    "protected": {
-                      "type": "noul",
-                      "noul": 1
-                    }
-                  },
-                  "usage": {
-                    "input_tokens": 0,
-                    "output_tokens": 0
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Body is not JSON.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "405": {
-            "description": "Method other than POST.",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "The request does not match Jev's schema.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Jev could not be reached or returned an unexpected response.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Any error Jev returned (e.g. 401, 429, 529), passed through unchanged, even if some questions were answered locally.",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
@@ -252,94 +147,6 @@
             "description": "Validation details from swamp (400 only)."
           }
         }
-      },
-      "SystemOneRequest": {
-        "type": "object",
-        "required": [
-          "state",
-          "model",
-          "questions"
-        ],
-        "properties": {
-          "state": {
-            "description": "What to evaluate: text, an object or an array."
-          },
-          "model": {
-            "type": "string",
-            "examples": [
-              "jev-latest",
-              "jev-1.13-free"
-            ]
-          },
-          "questions": {
-            "type": "object",
-            "minProperties": 1,
-            "description": "Question id → question. Each has `type` (`noul`, `choice` or `score`), `instructions`, and `criteria` (required for `choice` and `score`).",
-            "additionalProperties": {
-              "type": "object",
-              "required": [
-                "type",
-                "instructions"
-              ],
-              "properties": {
-                "type": {
-                  "enum": [
-                    "noul",
-                    "choice",
-                    "score"
-                  ]
-                },
-                "instructions": {},
-                "criteria": {}
-              }
-            }
-          }
-        }
-      },
-      "SystemOneResponse": {
-        "type": "object",
-        "required": [
-          "model",
-          "answers",
-          "usage"
-        ],
-        "properties": {
-          "model": {
-            "type": "string"
-          },
-          "answers": {
-            "type": "object",
-            "description": "Question id → answer: `{type: noul, noul}`, or for choice/score Jev's `probabilities` and `confidence` as well.",
-            "additionalProperties": {
-              "type": "object",
-              "required": [
-                "type"
-              ]
-            }
-          },
-          "usage": {
-            "type": "object",
-            "required": [
-              "input_tokens",
-              "output_tokens"
-            ],
-            "properties": {
-              "input_tokens": {
-                "type": "integer"
-              },
-              "output_tokens": {
-                "type": "integer"
-              }
-            }
-          }
-        }
-      }
-    },
-    "securitySchemes": {
-      "bearer": {
-        "type": "http",
-        "scheme": "bearer",
-        "description": "Your TypeSafe (Jev) API key; passed through to Jev, not checked by the router."
       }
     }
   }

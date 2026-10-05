@@ -1,8 +1,8 @@
 /**
  * Run a swamp workflow over swamp serve and read back its `result` artifact.
  *
- * Shared by `POST /check` and the Jev router, so both get the same answer from
- * the same workflow.
+ * The same steps as spike 1's `POST /check`, so the router gets the same
+ * answer from the same workflow.
  *
  * @module
  */

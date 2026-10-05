@@ -64,7 +64,6 @@ function deps(opts: FakeOpts): ApiDeps {
         ? Promise.reject(new Error("connection refused"))
         : Promise.resolve(client),
     index: () => Promise.resolve("<html></html>"),
-    systemOne: () => Promise.resolve(new Response("unused", { status: 500 })),
   };
 }
 
@@ -170,12 +169,7 @@ Deno.test("GET /openapi.json serves the API spec", async () => {
     "/",
     "/check",
     "/openapi.json",
-    "/v1/systemone",
   ]);
-  assertEquals(
-    Object.keys(spec.paths["/v1/systemone"].post.responses).sort(),
-    ["200", "400", "405", "422", "502", "default"],
-  );
   const ref: string =
     spec.paths["/check"].post.requestBody.content["application/json"].schema
       .$ref;
@@ -193,19 +187,4 @@ Deno.test("non-GET /openapi.json is 405", async () => {
     new Request("http://localhost/openapi.json", { method: "POST" }),
   );
   assertEquals(res.status, 405);
-});
-
-Deno.test("POST /v1/systemone goes to the Jev router; other methods 405", async () => {
-  const handler = app({
-    ...deps({}),
-    systemOne: () => Promise.resolve(new Response("routed", { status: 200 })),
-  });
-  const res = await handler(
-    new Request("http://localhost/v1/systemone", { method: "POST" }),
-  );
-  assertEquals(await res.text(), "routed");
-  assertEquals(
-    (await handler(new Request("http://localhost/v1/systemone"))).status,
-    405,
-  );
 });

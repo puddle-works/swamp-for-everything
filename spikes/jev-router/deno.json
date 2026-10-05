@@ -1,0 +1,16 @@
+{
+  "tasks": {
+    "api": "deno run --allow-net=127.0.0.1,opencode.ai,api.typesafe.ai --allow-env=SWAMP_URL,SWAMP_TOKEN,PORT,JEV_URL,PUDDLE_REPO,PUDDLE_REQUESTER --allow-run=swamp api/main.ts",
+    "test": "deno test api",
+    "check": "deno check api/",
+    "lint": "deno lint",
+    "fmt": "deno fmt"
+  },
+  "lint": {
+    "rules": {
+      "exclude": [
+        "no-import-prefix"
+      ]
+    }
+  }
+}

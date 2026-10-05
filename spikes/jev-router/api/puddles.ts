@@ -73,7 +73,7 @@ function describe(c: PuddleCandidate): string {
     "Callers ask Jev (TypeSafe's System One model) this question through the " +
     "Jev router, and Jev thinks it could be answered exactly by code. Build a " +
     "deterministic swamp check for it and add it to the router's registry " +
-    "(spikes/branch-protection-api/api/registry.ts in " +
+    "(spikes/jev-router/api/registry.ts in " +
     "puddle-works/swamp-for-everything).",
     "",
     `Question type: ${c.question.type}`,

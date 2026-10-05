@@ -1,7 +1,7 @@
 {
   "tasks": {
     "serve": "cd swamp && swamp serve --host 127.0.0.1 --port 9797 --auth-mode none --no-schedule",
-    "api": "deno run --allow-net=127.0.0.1,opencode.ai,api.typesafe.ai --allow-env=SWAMP_URL,SWAMP_TOKEN,PORT,JEV_URL,PUDDLE_REPO,PUDDLE_REQUESTER --allow-read=api --allow-run=swamp api/main.ts",
+    "api": "deno run --allow-net=127.0.0.1 --allow-env=SWAMP_URL,SWAMP_TOKEN,PORT --allow-read=api api/main.ts",
     "test": "deno test --allow-read --allow-env --allow-net=127.0.0.1 swamp/extensions api",
     "check": "deno check api/ swamp/extensions/",
     "lint": "deno lint",
