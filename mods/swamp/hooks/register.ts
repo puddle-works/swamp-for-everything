@@ -26,10 +26,11 @@ async function findRepo($: EngineInterface, cwd: string): Promise<string | undef
   return undefined
 }
 
-// `swamp update` kills swamp commands started while it runs (exit 137, no
-// output). It runs from a SessionStart settings hook, so read-only commands at
-// session start retry until it has finished (about 1.5 s).
-const KILLED = 137
+// `swamp update` kills swamp commands started while it runs. It runs from a
+// SessionStart settings hook, so read-only commands at session start retry
+// until it has finished (about 1.5 s). The shell shows a killed command as exit
+// 137, but `$.process.run` reports exit code 1, so a kill is a failure with no
+// output at all.
 const READ_TRIES = 4
 const RETRY_DELAY_MS = 1_000
 
@@ -37,7 +38,8 @@ async function swamp(
   $: EngineInterface, repo: string, args: string[], { timeoutMs, retry = true }: { timeoutMs?: number; retry?: boolean } = {},
 ) {
   let ran = await $.process.run(['swamp', ...args], { cwd: repo, timeoutMs })
-  for (let tries = 1; retry && ran.exitCode === KILLED && tries < READ_TRIES; tries++) {
+  const killed = () => ran.exitCode !== 0 && ran.stdout === '' && ran.stderr === ''
+  for (let tries = 1; retry && killed() && tries < READ_TRIES; tries++) {
     await $.clock.sleep(RETRY_DELAY_MS)
     ran = await $.process.run(['swamp', ...args], { cwd: repo, timeoutMs })
   }

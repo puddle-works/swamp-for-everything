@@ -123,7 +123,11 @@ Other notes:
   mod's `swamp workflow get` sometimes landed in that window, and the tool
   wasn't registered ("session.start hook skipped … failed:"). The mod now
   retries read-only swamp commands killed this way, up to 4 tries 1 s apart.
-  It never retries `swamp workflow run`, which could repeat a run.
+  It never retries `swamp workflow run`, which could repeat a run. A killed
+  command shows as exit 137 in a shell, but `$.process.run` reports exit code
+  1, so the mod treats any failure with no output as a kill. The race only
+  shows up in interactive sessions. `claude -p` didn't hit it, so the check
+  was run under a pseudo-terminal.
 
 ## 6. How the mod works
 

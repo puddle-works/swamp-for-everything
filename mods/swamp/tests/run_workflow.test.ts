@@ -50,8 +50,11 @@ const RUN_FAILED = {
 }
 const RESULT = { content: { repo: 'mesgme/swamp-for-everything', branch: 'main', protected: true } }
 
-/** What a swamp process killed as it starts (exit 137, no output) returns. */
-const KILLED: ProcessRunResult = { ...ok(''), exitCode: 137, stdout: '' }
+/**
+ * What `$.process.run` resolves for a swamp process killed as it starts. The
+ * shell shows exit 137 (SIGKILL), but the host reports exit code 1 and no output.
+ */
+const KILLED: ProcessRunResult = { ...ok(''), exitCode: 1, stdout: '' }
 
 /**
  * Fakes the host: a swamp repo at REPO and the swamp CLI answering by argv.
@@ -185,7 +188,7 @@ describe('run_workflow', () => {
 
     const called = await $.tool.call({ tool: TOOL, workflow: 'branch-protection', inputs: {} } as never)
 
-    expect((called as { deny?: string }).deny).toContain('exit code 137')
+    expect((called as { deny?: string }).deny).toContain('exit code 1: (no output)')
     expect(runs.filter(argv => argv[2] === 'run').length).toBe(1)
   })
 })
