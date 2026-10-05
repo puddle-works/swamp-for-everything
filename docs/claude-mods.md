@@ -117,6 +117,13 @@ Other notes:
 - `swamp` was found on `PATH` from inside the mod with no extra setup.
 - The tool is only registered when the session starts in a swamp repo (the
   folder, or its `swamp/` folder, has a `.swamp.yaml`).
+- **Session start can race `swamp update`.** A SessionStart settings hook runs
+  `swamp update`, and for about 1.5 s it kills any other swamp command as it
+  starts (exit 137, no output), even when swamp is already up to date. The
+  mod's `swamp workflow get` sometimes landed in that window, and the tool
+  wasn't registered ("session.start hook skipped … failed:"). The mod now
+  retries read-only swamp commands killed this way, up to 4 tries 1 s apart.
+  It never retries `swamp workflow run`, which could repeat a run.
 
 ## 6. How the mod works
 

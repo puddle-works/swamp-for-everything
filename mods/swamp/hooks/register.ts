@@ -26,12 +26,26 @@ async function findRepo($: EngineInterface, cwd: string): Promise<string | undef
   return undefined
 }
 
-async function swamp($: EngineInterface, repo: string, args: string[], timeoutMs?: number) {
-  const ran = await $.process.run(['swamp', ...args], { cwd: repo, timeoutMs })
+// `swamp update` kills swamp commands started while it runs (exit 137, no
+// output). It runs from a SessionStart settings hook, so read-only commands at
+// session start retry until it has finished (about 1.5 s).
+const KILLED = 137
+const READ_TRIES = 4
+const RETRY_DELAY_MS = 1_000
+
+async function swamp(
+  $: EngineInterface, repo: string, args: string[], { timeoutMs, retry = true }: { timeoutMs?: number; retry?: boolean } = {},
+) {
+  let ran = await $.process.run(['swamp', ...args], { cwd: repo, timeoutMs })
+  for (let tries = 1; retry && ran.exitCode === KILLED && tries < READ_TRIES; tries++) {
+    await $.clock.sleep(RETRY_DELAY_MS)
+    ran = await $.process.run(['swamp', ...args], { cwd: repo, timeoutMs })
+  }
   try {
     return JSON.parse(ran.stdout) as unknown
   } catch {
-    throw new Error(`swamp ${args.join(' ')} failed: ${(ran.stderr || ran.stdout).trim().slice(0, 500)}`)
+    const output = (ran.stderr || ran.stdout).trim().slice(0, 500)
+    throw new Error(`swamp ${args.join(' ')} failed with exit code ${ran.exitCode}: ${output || '(no output)'}`)
   }
 }
 
@@ -92,7 +106,7 @@ export const register: Register = on => {
         'workflow', 'run', workflow,
         '--input', JSON.stringify(inputs ?? {}),
         '--skip-reports', '--json',
-      ], RUN_TIMEOUT_MS) as Run
+      ], { timeoutMs: RUN_TIMEOUT_MS, retry: false }) as Run
     } catch (err) {
       return { deny: (err as Error).message }
     }

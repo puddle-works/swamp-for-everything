@@ -50,8 +50,18 @@ const RUN_FAILED = {
 }
 const RESULT = { content: { repo: 'mesgme/swamp-for-everything', branch: 'main', protected: true } }
 
-/** Fakes the host: a swamp repo at REPO and the swamp CLI answering by argv. */
-function fakeHost(on: On, runs: string[][], run: unknown = RUN_OK, hasRepo = true) {
+/** What a swamp process killed as it starts (exit 137, no output) returns. */
+const KILLED: ProcessRunResult = { ...ok(''), exitCode: 137, stdout: '' }
+
+/**
+ * Fakes the host: a swamp repo at REPO and the swamp CLI answering by argv.
+ * The first `killed` swamp commands matching `killedVerb` are killed as they start.
+ */
+function fakeHost(
+  on: On, runs: string[][], run: unknown = RUN_OK, hasRepo = true,
+  killed = 0, killedVerb = 'get',
+) {
+  on('clock.sleep', () => ({ value: undefined }))
   on('fs.stat', ($, e) => {
     if (hasRepo && e.path === `${REPO}/.swamp.yaml`) return { value: { isFile: true } as never }
     return { deny: 'ENOENT' }
@@ -60,6 +70,10 @@ function fakeHost(on: On, runs: string[][], run: unknown = RUN_OK, hasRepo = tru
     runs.push([...e.argv])
     expect(e.init?.cwd).toBe(REPO)
     const [, noun, verb] = e.argv
+    if (verb === killedVerb && killed > 0) {
+      killed--
+      return { value: KILLED }
+    }
     if (noun === 'workflow' && verb === 'search') return { value: ok(SEARCH) }
     if (noun === 'workflow' && verb === 'get') return { value: ok(GET) }
     if (noun === 'workflow' && verb === 'run') {
@@ -148,5 +162,30 @@ describe('run_workflow', () => {
       outputs: [],
       errors: [{ job: 'check', step: 'check', error: 'Secret GITHUB_TOKEN not found' }],
     })
+  })
+
+  // `swamp update` (run by a SessionStart settings hook) kills swamp commands
+  // started while it runs, so the mod's own session start can lose the race.
+  test('retries a swamp command killed as it starts', async ($, on) => {
+    const runs: string[][] = []
+    const registered = fakeHost(on, runs, RUN_OK, true, 1)
+    on('session.start', () => ({ cwd: start.cwd }))
+
+    await $.session.start(start)
+
+    expect(registered.length).toBe(1)
+    expect(runs.filter(argv => argv[2] === 'get').length).toBe(2)
+  })
+
+  test('does not retry a killed workflow run, and says how it exited', async ($, on) => {
+    const runs: string[][] = []
+    fakeHost(on, runs, RUN_OK, true, 1, 'run')
+    on('session.start', () => ({ cwd: start.cwd }))
+    await $.session.start(start)
+
+    const called = await $.tool.call({ tool: TOOL, workflow: 'branch-protection', inputs: {} } as never)
+
+    expect((called as { deny?: string }).deny).toContain('exit code 137')
+    expect(runs.filter(argv => argv[2] === 'run').length).toBe(1)
   })
 })
