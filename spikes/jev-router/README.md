@@ -1,5 +1,7 @@
 # Jev router
 
+THIS IS A SPIKE
+
 The same API as Jev (TypeSafe's System One model), `POST /v1/systemone`, at its
 own URL. A Jev caller only changes its base URL to `http://127.0.0.1:8788`.
 Design: [docs/jev-router.md](../../docs/jev-router.md).
