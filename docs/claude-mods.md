@@ -119,29 +119,29 @@ Other notes:
   folder, or its `swamp/` folder, has a `.swamp.yaml`).
 - **Session start can race `swamp update`.** A SessionStart settings hook runs
   `swamp update`, and for about 1.5 s it kills any other swamp command as it
-  starts (exit 137, no output), even when swamp is already up to date. The
-  mod's `swamp workflow get` sometimes landed in that window, and the tool
-  wasn't registered ("session.start hook skipped … failed:"). The mod now
-  retries read-only swamp commands killed this way, up to 4 tries 1 s apart.
-  It never retries `swamp workflow run`, which could repeat a run. A killed
-  command shows as exit 137 in a shell, but `$.process.run` reports exit code
-  1, so the mod treats any failure with no output as a kill. The race only
-  shows up in interactive sessions. `claude -p` didn't hit it, so the check
-  was run under a pseudo-terminal.
+  starts (exit 137, no output), even when swamp is already up to date. The mod's
+  `swamp workflow get` sometimes landed in that window, and the tool wasn't
+  registered ("session.start hook skipped … failed:"). The mod now retries
+  read-only swamp commands killed this way, up to 4 tries 1 s apart. It never
+  retries `swamp workflow run`, which could repeat a run. A killed command shows
+  as exit 137 in a shell, but `$.process.run` reports exit code 1, so the mod
+  treats any failure with no output as a kill. The race only shows up in
+  interactive sessions. `claude -p` didn't hit it, so the check was run under a
+  pseudo-terminal.
 
-- **Claude ignored the tool for an organisation-wide question.** It answered
-  "is the main branch at https://github.com/swamp-club protected?" with `gh`
-  each time. A mod's tool counts as an MCP tool, and MCP tools sit behind
-  ToolSearch, so Claude saw only the name `mcp__swamp__run_workflow`, never
-  the description. The mod now answers `tool.describe` with
-  `isDeferred: false`, so the description is in the prompt. The description
-  also tells Claude to use the tool instead of Bash/`gh`/`curl`, and to call
-  it once per item for a multi-item question. After the change, both test runs
-  used `gh` once to list the repos, then called the tool for each of the 6.
+- **Claude ignored the tool for an organisation-wide question.** It answered "is
+  the main branch at https://github.com/swamp-club protected?" with `gh` each
+  time. A mod's tool counts as an MCP tool, and MCP tools sit behind ToolSearch,
+  so Claude saw only the name `mcp__swamp__run_workflow`, never the description.
+  The mod now answers `tool.describe` with `isDeferred: false`, so the
+  description is in the prompt. The description also tells Claude to use the
+  tool instead of Bash/`gh`/`curl`, and to call it once per item for a
+  multi-item question. After the change, both test runs used `gh` once to list
+  the repos, then called the tool for each of the 6.
 - **Type-checking depends on which MCP servers are connected.** Saving a mod
   writes `.claude-plugin/types/claude-code-mcp/`, which declares the tools of
-  the MCP servers connected at the time. While it declares none, any
-  `mcp__*` name type-checks. Once it declares one, the mod's own
+  the MCP servers connected at the time. While it declares none, any `mcp__*`
+  name type-checks. Once it declares one, the mod's own
   `mcp__swamp__run_workflow` failed `tsc` (TS2322). The mod now declares its
   tool's inputs in `mods/swamp/types/run_workflow.d.ts`, so `tsc` passes
   whatever is connected and `e.workflow` is typed.
