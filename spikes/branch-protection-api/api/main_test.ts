@@ -157,3 +157,34 @@ Deno.test("unknown paths 404 and non-POST /check 405", async () => {
     405,
   );
 });
+
+Deno.test("GET /openapi.json serves the API spec", async () => {
+  const handler = app(deps({}));
+  const res = await handler(new Request("http://localhost/openapi.json"));
+  assertEquals(res.status, 200);
+  assertEquals(res.headers.get("content-type"), "application/json");
+  const spec = await res.json();
+  assertEquals(spec.openapi, "3.1.0");
+  assertEquals(Object.keys(spec.paths).sort(), [
+    "/",
+    "/check",
+    "/openapi.json",
+  ]);
+  const ref: string =
+    spec.paths["/check"].post.requestBody.content["application/json"].schema
+      .$ref;
+  const name = ref.replace("#/components/schemas/", "");
+  assertEquals(spec.components.schemas[name].required, ["url"]);
+  assertEquals(
+    Object.keys(spec.paths["/check"].post.responses).sort(),
+    ["200", "400", "405", "502", "503"],
+  );
+});
+
+Deno.test("non-GET /openapi.json is 405", async () => {
+  const handler = app(deps({}));
+  const res = await handler(
+    new Request("http://localhost/openapi.json", { method: "POST" }),
+  );
+  assertEquals(res.status, 405);
+});

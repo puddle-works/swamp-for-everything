@@ -2,7 +2,8 @@
  * Branch-protection API: HTTP in, Swamp serve (WebSocket) out.
  *
  *   POST /check  {"url": "https://github.com/owner/repo"} -> {"protected": bool}
- *   GET  /       a tiny static test page
+ *   GET  /              a tiny static test page
+ *   GET  /openapi.json  the full request/response contract (api/openapi.json)
  *
  * The API holds no branch-protection logic. It runs the `branch-protection`
  * workflow and reads the typed `result` artifact the run produced.
@@ -19,6 +20,7 @@ import {
   type WorkflowRunPayload,
   type WorkflowRunView,
 } from "jsr:@swamp-club/swamp-lib@0.20260928.23";
+import openapi from "./openapi.json" with { type: "json" };
 
 /** The subset of SwampClient this handler uses (fakeable in tests). */
 export interface SwampLike {
@@ -132,6 +134,12 @@ export function app(deps: ApiDeps): (req: Request) => Promise<Response> {
       return new Response(await deps.index(), {
         headers: { "content-type": "text/html; charset=utf-8" },
       });
+    }
+    if (pathname === "/openapi.json") {
+      if (req.method !== "GET") {
+        return new Response("method not allowed", { status: 405 });
+      }
+      return json(200, openapi);
     }
     if (pathname !== "/check") {
       return new Response("not found", { status: 404 });
