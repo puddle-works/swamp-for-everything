@@ -17,6 +17,7 @@ import {
   TypeSafeApiError,
 } from "./jev/client.ts";
 import { findCheck } from "./registry.ts";
+import type { PuddleCandidate } from "./puddles.ts";
 import type { WorkflowOutcome } from "./swamp.ts";
 
 export interface RouterDeps {
@@ -28,7 +29,14 @@ export interface RouterDeps {
     inputs: Record<string, unknown>,
   ): Promise<WorkflowOutcome>;
   log(message: string): void;
+  /** Runs `task` after the reply has been sent. */
+  later(task: () => Promise<void>): void;
+  /** Raises a puddle asking for a check to be built. */
+  raisePuddle(candidate: PuddleCandidate): Promise<unknown>;
 }
+
+/** Raise a puddle when Jev rates a question at least this likely to be code. */
+export const PUDDLE_THRESHOLD = 0.8;
 
 const RequestSchema = z.object({
   state: EntrySchema,
@@ -154,9 +162,23 @@ export function router(
     }
     for (const id of Object.keys(forward)) answers[id] = jev.answers[id];
 
+    const candidates: PuddleCandidate[] = [];
     for (const id of unchecked) {
       const a = jev.answers[codeQuestionId(id)];
-      if (a?.type === "noul") deps.log(`${id}: could be code ${a.noul}`);
+      if (a?.type !== "noul") continue;
+      deps.log(`${id}: could be code ${a.noul}`);
+      if (a.noul >= PUDDLE_THRESHOLD) {
+        candidates.push({ question: forward[id], state, probability: a.noul });
+      }
+    }
+    // Puddles must never slow down or fail the caller's request.
+    for (const candidate of candidates) {
+      deps.later(() =>
+        deps.raisePuddle(candidate).then(
+          () => {},
+          (e) => deps.log(`puddle failed: ${(e as Error).message}`),
+        )
+      );
     }
 
     return json(200, {

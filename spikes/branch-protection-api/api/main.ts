@@ -14,12 +14,15 @@
  *   SWAMP_TOKEN  server token, if serve runs with --auth-mode token
  *   PORT         listen port                (default 8787)
  *   JEV_URL      Jev API root               (default https://opencode.ai/zen)
+ *   PUDDLE_REPO       the puddle swamp repo (e.g. ~/dev/puddle); with
+ *   PUDDLE_REQUESTER  the router owner's email, turns on raising puddles
  *
  * @module
  */
 import { SwampClient } from "jsr:@swamp-club/swamp-lib@0.20260928.23";
 import { systemOne } from "./jev/client.ts";
 import openapi from "./openapi.json" with { type: "json" };
+import { PuddleRaiser, retryOn137, swampCli } from "./puddles.ts";
 import { router } from "./router.ts";
 import { type Connect, runWorkflow } from "./swamp.ts";
 
@@ -35,6 +38,13 @@ export interface ApiDeps {
 }
 
 const WORKFLOW = "branch-protection";
+
+/** Puddle global arguments beyond title/requester, as on existing puddles. */
+const PUDDLE_GLOBAL_ARGS = {
+  internalEmailDomains: "mesg.solutions,ravegraph.io",
+  notifyUrl: "http://localhost:3000/api/v1/swamp_events",
+  notifyToken: '${{ vault.get("puddle", "RAILS_INGEST_TOKEN") }}',
+};
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -122,12 +132,29 @@ if (import.meta.main) {
     return client;
   };
 
+  const log = (message: string) => console.log(`[jev-router] ${message}`);
+  const puddleRepo = Deno.env.get("PUDDLE_REPO");
+  const requester = Deno.env.get("PUDDLE_REQUESTER");
+  const puddles = puddleRepo && requester
+    ? new PuddleRaiser(
+      retryOn137(swampCli(puddleRepo)),
+      { requester, globalArgs: PUDDLE_GLOBAL_ARGS },
+      log,
+    )
+    : undefined;
+
   const handler = app({
     connect,
     index: () => Deno.readTextFile(new URL("./index.html", import.meta.url)),
     systemOne: router({
       runWorkflow: (workflow, inputs) => runWorkflow(connect, workflow, inputs),
-      log: (message) => console.log(`[jev-router] ${message}`),
+      log,
+      later: (task) => setTimeout(task, 0),
+      raisePuddle: (candidate) => {
+        if (puddles) return puddles.raise(candidate);
+        log("puddles off (set PUDDLE_REPO and PUDDLE_REQUESTER)");
+        return Promise.resolve();
+      },
       jev: (request, apiKey) =>
         systemOne(
           { apiKey, baseUrl: jevUrl, timeoutMs: 30_000, maxRetries: 2 },
@@ -146,5 +173,8 @@ if (import.meta.main) {
     );
     return res;
   });
-  console.log(`branch-protection api → swamp serve at ${url}`);
+  console.log(
+    `branch-protection api → swamp serve at ${url}, Jev at ${jevUrl}`,
+  );
+  if (puddles) console.log(`puddles → ${puddleRepo} as ${requester}`);
 }

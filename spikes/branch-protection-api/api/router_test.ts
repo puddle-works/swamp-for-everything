@@ -3,12 +3,16 @@ import type { SystemOneRequest, SystemOneResponse } from "./jev/client.ts";
 import { TypeSafeApiError } from "./jev/client.ts";
 import { router, type RouterDeps } from "./router.ts";
 import type { WorkflowOutcome } from "./swamp.ts";
+import type { PuddleCandidate } from "./puddles.ts";
 
 interface Fake {
   deps: RouterDeps;
   jevCalls: { request: SystemOneRequest; apiKey: string }[];
   workflowCalls: { workflow: string; inputs: Record<string, unknown> }[];
   logs: string[];
+  /** Work the router scheduled for after the reply. */
+  later: (() => Promise<void>)[];
+  puddles: PuddleCandidate[];
 }
 
 /**
@@ -18,7 +22,10 @@ interface Fake {
 function fake(opts: {
   jev?: (r: SystemOneRequest) => SystemOneResponse;
   workflow?: WorkflowOutcome;
+  puddleFails?: boolean;
 } = {}): Fake {
+  const later: Fake["later"] = [];
+  const puddles: PuddleCandidate[] = [];
   const jevCalls: Fake["jevCalls"] = [];
   const workflowCalls: Fake["workflowCalls"] = [];
   const logs: string[] = [];
@@ -30,6 +37,13 @@ function fake(opts: {
       );
     },
     log: (message) => logs.push(message),
+    later: (task) => later.push(task),
+    raisePuddle: (candidate) => {
+      puddles.push(candidate);
+      return opts.puddleFails
+        ? Promise.reject(new Error("swamp exited 1"))
+        : Promise.resolve();
+    },
     jev: (request, apiKey) => {
       jevCalls.push({ request, apiKey });
       return Promise.resolve(
@@ -45,7 +59,7 @@ function fake(opts: {
       );
     },
   };
-  return { deps, jevCalls, workflowCalls, logs };
+  return { deps, jevCalls, workflowCalls, logs, later, puddles };
 }
 
 function post(body: unknown, auth = "Bearer sk-test"): Request {
@@ -263,4 +277,52 @@ Deno.test("systemone: a Jev error wins even when some questions were answered lo
   );
   assertEquals(res.status, 429);
   assertEquals(await res.json(), { error: "slow down" });
+});
+
+/** Jev fake that rates every "could be code" question at `p`. */
+function ratesCode(p: number) {
+  return (r: SystemOneRequest): SystemOneResponse => ({
+    model: "jev-1.13-free",
+    answers: Object.fromEntries(
+      Object.keys(r.questions).map((id) => [
+        id,
+        { type: "noul" as const, noul: id.includes("could_be_code") ? p : 0.5 },
+      ]),
+    ),
+    usage: { input_tokens: 100, output_tokens: 10 },
+  });
+}
+
+Deno.test("systemone: raises a puddle after replying when Jev rates it ≥ 0.8 code", async () => {
+  const f = fake({ jev: ratesCode(0.9) });
+  const res = await router(f.deps)(
+    post({ state: "s", model: "jev-latest", questions: { q: JUDGEMENT } }),
+  );
+  assertEquals(res.status, 200);
+  assertEquals(f.puddles.length, 0, "not before the reply");
+  await Promise.all(f.later.map((t) => t()));
+  assertEquals(f.puddles, [{
+    question: JUDGEMENT,
+    state: "s",
+    probability: 0.9,
+  }]);
+});
+
+Deno.test("systemone: no puddle below 0.8", async () => {
+  const f = fake({ jev: ratesCode(0.79) });
+  await router(f.deps)(
+    post({ state: "s", model: "jev-latest", questions: { q: JUDGEMENT } }),
+  );
+  await Promise.all(f.later.map((t) => t()));
+  assertEquals(f.puddles.length, 0);
+});
+
+Deno.test("systemone: a failed puddle is logged and never reaches the caller", async () => {
+  const f = fake({ jev: ratesCode(0.95), puddleFails: true });
+  const res = await router(f.deps)(
+    post({ state: "s", model: "jev-latest", questions: { q: JUDGEMENT } }),
+  );
+  assertEquals(res.status, 200);
+  await Promise.all(f.later.map((t) => t()));
+  assertEquals(f.logs.some((l) => l.includes("swamp exited 1")), true);
 });
