@@ -1,5 +1,6 @@
 import type { On, ProcessRunResult, ToolSpec } from 'claude-code'
 import { describe, expect, test } from 'claude-code/testing'
+import { keepInPrompt } from '../hooks/register.ts'
 
 const TOOL = 'mcp__swamp__run_workflow'
 const REPO = '/work/project/swamp'
@@ -106,6 +107,30 @@ describe('run_workflow', () => {
     expect(registered[0]?.name).toBe('run_workflow')
     expect(registered[0]?.description).toContain('branch-protection: Is the default branch protected?')
     expect(registered[0]?.description).toContain('url (string, required): GitHub repository URL')
+  })
+
+  // Told only to prefer a workflow "when it fits", Claude answered an
+  // organisation-wide question with gh and never called the tool.
+  test('tells Claude to use the tool over Bash, once per item for several', async ($, on) => {
+    const registered = fakeHost(on, [])
+    on('session.start', () => ({ cwd: start.cwd }))
+
+    await $.session.start(start)
+
+    const description = registered[0]?.description ?? ''
+    expect(description).toContain('Use this tool instead of Bash, gh, curl or the swamp CLI')
+    expect(description).toContain('call it once for each')
+  })
+
+  // MCP tools sit behind ToolSearch, so Claude saw only the tool's name, never
+  // the description that tells it to use the tool.
+  test('keeps the tool and its description in the prompt, not behind ToolSearch', async () => {
+    const e = { tool: TOOL, description: 'Run a swamp workflow', isDeferred: true as const, provider: {} as never }
+    const next = async () => ({ description: 'Run a swamp workflow', isDeferred: true })
+
+    const described = await keepInPrompt({} as never, e, next as never)
+
+    expect(described).toEqual({ description: 'Run a swamp workflow', isDeferred: false })
   })
 
   test('registers nothing outside a swamp repo', async ($, on) => {

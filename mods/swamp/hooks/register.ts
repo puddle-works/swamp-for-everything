@@ -5,7 +5,7 @@
  * The swamp repo is the session's directory, or its `swamp/` folder, whichever
  * holds a `.swamp.yaml`. Outside a swamp repo the tool is not registered.
  */
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Hook, Register } from 'claude-code'
 
 const TOOL = 'run_workflow'
 const RUN_TIMEOUT_MS = 10 * 60_000
@@ -73,6 +73,12 @@ async function describeWorkflows($: EngineInterface, repo: string): Promise<stri
   return lines.join('\n')
 }
 
+/**
+ * Engine rule: an MCP tool waits behind ToolSearch, so Claude sees only its
+ * name, not the description that says when to use it. Keep it in the prompt.
+ */
+export const keepInPrompt: Hook<'tool.describe'> = async ($, e, next) => ({ ...(await next(e)), isDeferred: false })
+
 export const register: Register = on => {
   let repo: string | undefined
 
@@ -82,8 +88,13 @@ export const register: Register = on => {
       await $.tool.register({
         name: TOOL,
         description:
-          `Run a swamp workflow in ${repo} and return its status and output data. ` +
-          `Workflows give deterministic answers, so prefer one when it fits the question.\n\n` +
+          `Run a swamp workflow in ${repo} and return its status and output data.\n\n` +
+          `Use this tool instead of Bash, gh, curl or the swamp CLI whenever a workflow below can ` +
+          `answer the question, or part of it. Workflow answers are deterministic and recorded in ` +
+          `swamp's run history, so they are the answer the user wants. If the question covers ` +
+          `several items a workflow takes one at a time (e.g. every repository in a GitHub ` +
+          `organisation), list the items with whatever tool fits, then call it once for each, ` +
+          `and answer from the workflow results, not your own checks.\n\n` +
           `Workflows:\n${await describeWorkflows($, repo)}`,
         inputSchema: {
           type: 'object',
@@ -97,6 +108,8 @@ export const register: Register = on => {
     }
     return next(e)
   })
+
+  on('tool.describe', { tool: 'mcp__swamp__run_workflow' }, keepInPrompt)
 
   on('tool.call', { tool: 'mcp__swamp__run_workflow' }, async ($, e) => {
     if (repo === undefined) return { deny: 'Not in a swamp repo.' }

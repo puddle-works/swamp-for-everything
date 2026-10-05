@@ -129,6 +129,16 @@ Other notes:
   shows up in interactive sessions. `claude -p` didn't hit it, so the check
   was run under a pseudo-terminal.
 
+- **Claude ignored the tool for an organisation-wide question.** It answered
+  "is the main branch at https://github.com/swamp-club protected?" with `gh`
+  each time. A mod's tool counts as an MCP tool, and MCP tools sit behind
+  ToolSearch, so Claude saw only the name `mcp__swamp__run_workflow`, never
+  the description. The mod now answers `tool.describe` with
+  `isDeferred: false`, so the description is in the prompt. The description
+  also tells Claude to use the tool instead of Bash/`gh`/`curl`, and to call
+  it once per item for a multi-item question. After the change, both test runs
+  used `gh` once to list the repos, then called the tool for each of the 6.
+
 ## 6. How the mod works
 
 `mods/swamp/hooks/register.ts`:
