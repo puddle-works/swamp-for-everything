@@ -113,7 +113,7 @@ export const register: Register = on => {
 
   on('tool.call', { tool: 'mcp__swamp__run_workflow' }, async ($, e) => {
     if (repo === undefined) return { deny: 'Not in a swamp repo.' }
-    const { workflow, inputs } = e as unknown as { workflow: string; inputs?: Record<string, unknown> }
+    const { workflow, inputs } = e
 
     let run: Run
     try {

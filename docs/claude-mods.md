@@ -138,6 +138,13 @@ Other notes:
   also tells Claude to use the tool instead of Bash/`gh`/`curl`, and to call
   it once per item for a multi-item question. After the change, both test runs
   used `gh` once to list the repos, then called the tool for each of the 6.
+- **Type-checking depends on which MCP servers are connected.** Saving a mod
+  writes `.claude-plugin/types/claude-code-mcp/`, which declares the tools of
+  the MCP servers connected at the time. While it declares none, any
+  `mcp__*` name type-checks. Once it declares one, the mod's own
+  `mcp__swamp__run_workflow` failed `tsc` (TS2322). The mod now declares its
+  tool's inputs in `mods/swamp/types/run_workflow.d.ts`, so `tsc` passes
+  whatever is connected and `e.workflow` is typed.
 
 ## 6. How the mod works
 
