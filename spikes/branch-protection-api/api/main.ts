@@ -126,6 +126,8 @@ if (import.meta.main) {
     connect,
     index: () => Deno.readTextFile(new URL("./index.html", import.meta.url)),
     systemOne: router({
+      runWorkflow: (workflow, inputs) => runWorkflow(connect, workflow, inputs),
+      log: (message) => console.log(`[jev-router] ${message}`),
       jev: (request, apiKey) =>
         systemOne(
           { apiKey, baseUrl: jevUrl, timeoutMs: 30_000, maxRetries: 2 },

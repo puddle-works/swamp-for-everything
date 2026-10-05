@@ -7,16 +7,27 @@
  */
 import { z } from "npm:zod@4.3.6";
 import {
+  type Answer,
+  type Entry,
   EntrySchema,
+  type Question,
   QuestionsSchema,
   type SystemOneRequest,
   type SystemOneResponse,
   TypeSafeApiError,
 } from "./jev/client.ts";
+import { findCheck } from "./registry.ts";
+import type { WorkflowOutcome } from "./swamp.ts";
 
 export interface RouterDeps {
   /** Calls Jev with the caller's API key. */
   jev(request: SystemOneRequest, apiKey: string): Promise<SystemOneResponse>;
+  /** Runs a swamp workflow and returns its `result`. */
+  runWorkflow(
+    workflow: string,
+    inputs: Record<string, unknown>,
+  ): Promise<WorkflowOutcome>;
+  log(message: string): void;
 }
 
 const RequestSchema = z.object({
@@ -34,6 +45,37 @@ const json = (status: number, body: unknown) =>
 function bearer(req: Request): string {
   const auth = req.headers.get("authorization") ?? "";
   return auth.replace(/^Bearer\s+/i, "");
+}
+
+/**
+ * Answer `question` from its swamp check, if it has one and the check works.
+ * Returns undefined for anything that should go to Jev instead.
+ */
+async function answerLocally(
+  deps: RouterDeps,
+  id: string,
+  question: Question,
+  state: Entry,
+): Promise<Answer | undefined> {
+  const check = findCheck(question);
+  if (!check) return undefined;
+  const inputs = check.inputs(state);
+  if (!inputs) {
+    deps.log(`${id}: matches ${check.workflow} but state has no inputs → Jev`);
+    return undefined;
+  }
+  const outcome = await deps.runWorkflow(check.workflow, inputs);
+  if (!outcome.ok) {
+    deps.log(`${id}: ${check.workflow} failed (${outcome.error}) → Jev`);
+    return undefined;
+  }
+  const answer = check.answer(outcome.result);
+  if (!answer) {
+    deps.log(`${id}: ${check.workflow} result unusable → Jev`);
+    return undefined;
+  }
+  deps.log(`${id}: answered by ${check.workflow}`);
+  return answer;
 }
 
 export function router(
@@ -54,11 +96,41 @@ export function router(
       });
     }
 
+    const { state, model, questions } = parsed.data;
+
+    const ids = Object.keys(questions);
+    const local = await Promise.all(
+      ids.map((id) => answerLocally(deps, id, questions[id], state)),
+    );
+    const answers: Record<string, Answer> = {};
+    const forward: Record<string, Question> = {};
+    ids.forEach((id, i) => {
+      if (local[i]) answers[id] = local[i];
+      else forward[id] = questions[id];
+    });
+
+    if (Object.keys(forward).length === 0) {
+      return json(200, {
+        model,
+        answers,
+        usage: { input_tokens: 0, output_tokens: 0 },
+      });
+    }
+
+    let jev: SystemOneResponse;
     try {
-      return json(200, await deps.jev(parsed.data, bearer(req)));
+      jev = await deps.jev({ state, model, questions: forward }, bearer(req));
     } catch (e) {
       if (e instanceof TypeSafeApiError) return json(e.status, e.body);
       return json(502, { error: (e as Error).message });
     }
+    for (const id of Object.keys(forward)) answers[id] = jev.answers[id];
+
+    return json(200, {
+      model: jev.model,
+      // In the caller's order.
+      answers: Object.fromEntries(ids.map((id) => [id, answers[id]])),
+      usage: jev.usage,
+    });
   };
 }

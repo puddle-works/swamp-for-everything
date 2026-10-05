@@ -2,18 +2,34 @@ import { assertEquals } from "jsr:@std/assert@1";
 import type { SystemOneRequest, SystemOneResponse } from "./jev/client.ts";
 import { TypeSafeApiError } from "./jev/client.ts";
 import { router, type RouterDeps } from "./router.ts";
+import type { WorkflowOutcome } from "./swamp.ts";
 
 interface Fake {
   deps: RouterDeps;
   jevCalls: { request: SystemOneRequest; apiKey: string }[];
+  workflowCalls: { workflow: string; inputs: Record<string, unknown> }[];
+  logs: string[];
 }
 
-/** Jev fake: answers every noul question with `noul`, unless overridden. */
+/**
+ * Jev fake: answers every noul question with 0.5, unless overridden.
+ * Swamp fake: every workflow says `protected: true`, unless overridden.
+ */
 function fake(opts: {
   jev?: (r: SystemOneRequest) => SystemOneResponse;
+  workflow?: WorkflowOutcome;
 } = {}): Fake {
   const jevCalls: Fake["jevCalls"] = [];
+  const workflowCalls: Fake["workflowCalls"] = [];
+  const logs: string[] = [];
   const deps: RouterDeps = {
+    runWorkflow: (workflow, inputs) => {
+      workflowCalls.push({ workflow, inputs });
+      return Promise.resolve(
+        opts.workflow ?? { ok: true, result: { protected: true } },
+      );
+    },
+    log: (message) => logs.push(message),
     jev: (request, apiKey) => {
       jevCalls.push({ request, apiKey });
       return Promise.resolve(
@@ -29,7 +45,7 @@ function fake(opts: {
       );
     },
   };
-  return { deps, jevCalls };
+  return { deps, jevCalls, workflowCalls, logs };
 }
 
 function post(body: unknown, auth = "Bearer sk-test"): Request {
@@ -110,4 +126,71 @@ Deno.test("systemone: Jev unreachable is a 502", async () => {
     post({ state: "s", model: "jev-latest", questions: { q: JUDGEMENT } }),
   );
   assertEquals(res.status, 502);
+});
+
+const PROTECTED = {
+  type: "noul" as const,
+  instructions: "Is the default branch of this repository protected?",
+};
+const REPO_STATE = "The repository is https://github.com/o/r.";
+
+Deno.test("systemone: answers the branch-protection question from swamp, not Jev", async () => {
+  const f = fake();
+  const res = await router(f.deps)(
+    post({
+      state: REPO_STATE,
+      model: "jev-latest",
+      questions: { p: PROTECTED },
+    }),
+  );
+  assertEquals(res.status, 200);
+  assertEquals(await res.json(), {
+    model: "jev-latest",
+    answers: { p: { type: "noul", noul: 1 } },
+    usage: { input_tokens: 0, output_tokens: 0 },
+  });
+  assertEquals(f.jevCalls.length, 0);
+  assertEquals(f.workflowCalls, [{
+    workflow: "branch-protection",
+    inputs: { url: "https://github.com/o/r" },
+  }]);
+});
+
+Deno.test("systemone: an unprotected branch is noul 0", async () => {
+  const f = fake({ workflow: { ok: true, result: { protected: false } } });
+  const res = await router(f.deps)(
+    post({
+      state: REPO_STATE,
+      model: "jev-latest",
+      questions: { p: PROTECTED },
+    }),
+  );
+  assertEquals((await res.json()).answers.p, { type: "noul", noul: 0 });
+});
+
+Deno.test("systemone: a failed check falls through to Jev and is logged", async () => {
+  const f = fake({ workflow: { ok: false, status: 502, error: "GitHub 500" } });
+  const res = await router(f.deps)(
+    post({
+      state: REPO_STATE,
+      model: "jev-latest",
+      questions: { p: PROTECTED },
+    }),
+  );
+  assertEquals((await res.json()).answers.p, { type: "noul", noul: 0.5 });
+  assertEquals(f.jevCalls[0].request.questions.p, PROTECTED);
+  assertEquals(f.logs.some((l) => l.includes("GitHub 500")), true);
+});
+
+Deno.test("systemone: no repo in state falls through to Jev without running swamp", async () => {
+  const f = fake();
+  const res = await router(f.deps)(
+    post({
+      state: "no repo",
+      model: "jev-latest",
+      questions: { p: PROTECTED },
+    }),
+  );
+  assertEquals((await res.json()).answers.p, { type: "noul", noul: 0.5 });
+  assertEquals(f.workflowCalls.length, 0);
 });
