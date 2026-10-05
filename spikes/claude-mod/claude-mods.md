@@ -3,11 +3,10 @@
 ## In short
 
 A Claude Code mod can give Claude a typed tool that runs a swamp workflow and
-returns the answer. We built one, `mods/swamp/`, with a single tool,
-`run_workflow`. Asked "is the default branch of mesgme/swamp-for-everything
-protected?", Claude called the tool, swamp ran the branch-protection workflow,
-and Claude answered from the workflow's result (`protected: true`) instead of
-working it out itself.
+returns the answer. We built one, `plugin/`, with a single tool, `run_workflow`.
+Asked "is the default branch of mesgme/swamp-for-everything protected?", Claude
+called the tool, swamp ran the branch-protection workflow, and Claude answered
+from the workflow's result (`protected: true`) instead of working it out itself.
 
 The mod reaches swamp through the swamp CLI. Mods have no WebSocket client, so
 they can't use `swamp serve`.
@@ -143,12 +142,12 @@ Other notes:
   the MCP servers connected at the time. While it declares none, any `mcp__*`
   name type-checks. Once it declares one, the mod's own
   `mcp__swamp__run_workflow` failed `tsc` (TS2322). The mod now declares its
-  tool's inputs in `mods/swamp/types/run_workflow.d.ts`, so `tsc` passes
-  whatever is connected and `e.workflow` is typed.
+  tool's inputs in `plugin/types/run_workflow.d.ts`, so `tsc` passes whatever is
+  connected and `e.workflow` is typed.
 
 ## 6. How the mod works
 
-`mods/swamp/hooks/register.ts`:
+`plugin/hooks/register.ts`:
 
 1. On `session.start`, find the swamp repo. If there is one, list its workflows
    (`swamp workflow search --json`, then `swamp workflow get <name> --json` for
@@ -160,5 +159,5 @@ Other notes:
    `resource` the steps wrote, fetch it with `swamp data get`. Return the
    status, the outputs and any step errors as JSON text.
 
-Tests (`mods/swamp/tests/`) fake the swamp CLI. Run them with
-`claude plugin test mods/swamp`.
+Tests (`plugin/tests/`) fake the swamp CLI. Run them with
+`claude plugin test plugin`.

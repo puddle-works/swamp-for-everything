@@ -16,8 +16,7 @@
   },
   "exclude": [
     "swamp/.swamp",
-    "swamp/.claude",
-    "mods"
+    "swamp/.claude"
   ],
   "fmt": {
     "exclude": [
