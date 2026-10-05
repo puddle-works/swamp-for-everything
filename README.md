@@ -31,3 +31,25 @@ The model reads its GitHub token from the `github` vault
 gh auth token | (cd swamp && swamp vault put github GITHUB_TOKEN \
   --refresh-from "gh auth token" --refresh-ttl 1h)
 ```
+
+## Swamp as a tool for Claude (#17)
+
+`mods/swamp/` is a Claude Code mod that gives Claude one tool, `run_workflow`,
+which runs a swamp workflow and returns its result. Start Claude Code from the
+repo root with the mod loaded:
+
+```bash
+claude --plugin-dir mods/swamp
+```
+
+Then ask, for example, "Is the default branch of
+https://github.com/mesgme/swamp-for-everything protected?". Claude calls
+`mcp__swamp__run_workflow` and answers from the workflow's result. It needs the
+`github` vault token above.
+
+```bash
+claude plugin test mods/swamp       # tests
+claude plugin validate mods/swamp   # checks the mod as Claude Code will load it
+```
+
+Findings: [docs/claude-mods.md](docs/claude-mods.md).

@@ -1,0 +1,6 @@
+{
+  "name": "swamp",
+  "version": "0.1.0",
+  "description": "Gives Claude a tool that runs a swamp workflow and returns its result.",
+  "author": { "name": "Mark Ellens" }
+}
