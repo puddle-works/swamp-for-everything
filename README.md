@@ -43,7 +43,7 @@ claude --plugin-dir mods/swamp
 ```
 
 Then ask, for example, "Is the default branch of
-https://github.com/mesgme/swamp-for-everything protected?". Claude calls
+https://github.com/puddle-works/swamp-for-everything protected?". Claude calls
 `mcp__swamp__run_workflow` and answers from the workflow's result. It needs the
 `github` vault token above.
 
