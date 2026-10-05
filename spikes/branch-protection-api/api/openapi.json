@@ -1,0 +1,153 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Branch-protection check",
+    "version": "1.0.0",
+    "description": "Deterministic check of whether a GitHub repository's default branch is protected (classic branch protection or a repository ruleset). The answer comes from the `branch-protection` swamp workflow; this API is thin glue over swamp serve."
+  },
+  "servers": [{ "url": "http://127.0.0.1:8787" }],
+  "security": [],
+  "paths": {
+    "/check": {
+      "post": {
+        "operationId": "checkBranchProtection",
+        "summary": "Check a repository's default branch for protection",
+        "description": "Only the default branch is checked. The Content-Type header is not enforced; the body just has to be JSON. The URL is validated inside the swamp model, so a URL it rejects comes back as 502, not 400.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CheckRequest" },
+              "example": { "url": "https://github.com/octocat/Hello-World" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The check ran.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CheckResult" },
+                "example": {
+                  "protected": false,
+                  "repo": "octocat/Hello-World",
+                  "branch": "master"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body is not JSON, `url` is missing or empty, or swamp rejected the workflow inputs.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "url is required" }
+              }
+            }
+          },
+          "405": {
+            "description": "Method other than POST.",
+            "content": { "text/plain": { "schema": { "type": "string" } } }
+          },
+          "502": {
+            "description": "The workflow failed: the URL was rejected, the repo was not found, GitHub returned an error, or the GitHub token is missing from the vault. Never reported as `protected: false`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "not a github.com URL: https://gitlab.com/o/r",
+                  "failedStep": "check"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "swamp serve is unreachable.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": {
+                  "error": "cannot reach swamp serve: connection refused"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "operationId": "getTestPage",
+        "summary": "Small HTML test page",
+        "responses": {
+          "200": {
+            "description": "The test page.",
+            "content": { "text/html": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "operationId": "getOpenApi",
+        "summary": "This document",
+        "responses": {
+          "200": {
+            "description": "The OpenAPI document.",
+            "content": {
+              "application/json": { "schema": { "type": "object" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CheckRequest": {
+        "type": "object",
+        "required": ["url"],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "An http(s) github.com repository URL. A trailing `.git` or `/`, a query string, a fragment and extra path segments (e.g. `/tree/main/src`) are ignored; only `owner/repo` is used. Other hosts (including GitHub Enterprise), SSH URLs (`git@github.com:owner/repo.git`) and URLs without an `owner/repo` path are rejected.",
+            "examples": [
+              "https://github.com/owner/repo",
+              "https://github.com/owner/repo.git",
+              "https://github.com/owner/repo/tree/main/src"
+            ]
+          }
+        }
+      },
+      "CheckResult": {
+        "type": "object",
+        "required": ["protected", "repo", "branch"],
+        "properties": {
+          "protected": {
+            "type": "boolean",
+            "description": "True if the default branch has classic branch protection or is covered by a repository ruleset."
+          },
+          "repo": { "type": "string", "description": "`owner/repo`." },
+          "branch": {
+            "type": "string",
+            "description": "The default branch that was checked."
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string" },
+          "failedStep": {
+            "type": "string",
+            "description": "Name of the workflow step that failed (502 only)."
+          },
+          "details": {
+            "description": "Validation details from swamp (400 only)."
+          }
+        }
+      }
+    }
+  }
+}
