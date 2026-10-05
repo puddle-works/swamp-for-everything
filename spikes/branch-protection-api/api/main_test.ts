@@ -170,7 +170,12 @@ Deno.test("GET /openapi.json serves the API spec", async () => {
     "/",
     "/check",
     "/openapi.json",
+    "/v1/systemone",
   ]);
+  assertEquals(
+    Object.keys(spec.paths["/v1/systemone"].post.responses).sort(),
+    ["200", "400", "405", "422", "502", "default"],
+  );
   const ref: string =
     spec.paths["/check"].post.requestBody.content["application/json"].schema
       .$ref;

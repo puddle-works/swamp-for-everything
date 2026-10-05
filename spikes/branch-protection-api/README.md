@@ -1,6 +1,7 @@
 # Spike 1: branch-protection check
 
-A fully deterministic API — no LLM anywhere. It accepts a GitHub repo URL and
+A fully deterministic API — no LLM anywhere (except the Jev router below, which
+forwards to Jev what swamp can't answer). It accepts a GitHub repo URL and
 returns whether that repo's default branch has branch protection (classic
 protection or a repository ruleset). The HTTP layer is thin glue; the answer is
 produced by the Swamp model/workflow under `swamp/`.
@@ -59,6 +60,33 @@ Errors return `{"error": "..."}`:
 
 A rejected URL is a 502, not a 400: the URL is validated inside the swamp model,
 not by the HTTP layer. A GitHub error is never reported as `protected: false`.
+
+### `POST /v1/systemone` — the Jev router
+
+Same request and response as Jev (TypeSafe's System One model), so a Jev caller
+only changes its base URL to `http://127.0.0.1:8787`. Design:
+[docs/jev-router.md](../../docs/jev-router.md).
+
+For each question in a request:
+
+1. **A swamp check exists** (exact match on type and instructions, and its
+   inputs are in `state`): answered by the swamp workflow, with certainty. Today
+   there is one: `noul` "Is the default branch of this repository protected?",
+   answered by `branch-protection` for the one GitHub repo URL in `state`. If
+   the check can't run or fails, the question goes to Jev.
+2. **Otherwise** it goes to Jev, in one call, with the caller's `Authorization`
+   header. Jev is also asked whether each question could be answered exactly by
+   code. If it says ≥ 0.8, a submitted puddle asking for the check is raised in
+   the puddle repo after the reply: once per question, repeats are counted.
+
+Raising puddles needs the puddle repo and the router owner's email. Without them
+the router still works and just logs that puddles are off:
+
+```bash
+PUDDLE_REPO=~/dev/puddle PUDDLE_REQUESTER=you@example.com deno task api
+```
+
+Jev's base URL defaults to the OpenCode Zen route; set `JEV_URL` to change it.
 
 ### Other routes
 
