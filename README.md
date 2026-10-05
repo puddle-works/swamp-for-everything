@@ -9,5 +9,3 @@ tasks and README. Run a spike's commands from its folder.
 | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | [branch-protection-api](spikes/branch-protection-api/)    | Spike 1: a deterministic HTTP API that asks swamp whether a branch is protected |
 | [claude-mod](spikes/claude-mod/)                          | #17: a Claude Code mod that gives Claude a tool to run swamp workflows          |
-
-Other investigations: [Jev router](docs/jev-router.md) (#16).
