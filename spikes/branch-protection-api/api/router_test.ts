@@ -194,3 +194,73 @@ Deno.test("systemone: no repo in state falls through to Jev without running swam
   assertEquals((await res.json()).answers.p, { type: "noul", noul: 0.5 });
   assertEquals(f.workflowCalls.length, 0);
 });
+
+Deno.test("systemone: asks Jev if each unchecked question could be code, then strips it", async () => {
+  const f = fake();
+  const res = await router(f.deps)(
+    post({ state: "s", model: "jev-latest", questions: { q: JUDGEMENT } }),
+  );
+  const sent = f.jevCalls[0].request.questions;
+  const extra = Object.keys(sent).filter((id) => id !== "q");
+  assertEquals(extra.length, 1);
+  assertEquals(sent[extra[0]].type, "noul");
+  assertEquals(
+    JSON.stringify(sent[extra[0]].instructions).includes(
+      JUDGEMENT.instructions,
+    ),
+    true,
+  );
+  assertEquals(Object.keys((await res.json()).answers), ["q"]);
+});
+
+Deno.test("systemone: a question with a failed check is not asked about as code", async () => {
+  const f = fake({ workflow: { ok: false, status: 503, error: "down" } });
+  await router(f.deps)(
+    post({
+      state: REPO_STATE,
+      model: "jev-latest",
+      questions: { p: PROTECTED },
+    }),
+  );
+  assertEquals(Object.keys(f.jevCalls[0].request.questions), ["p"]);
+});
+
+Deno.test("systemone: a mixed request merges swamp and Jev answers in the caller's order", async () => {
+  const f = fake();
+  const res = await router(f.deps)(
+    post({
+      state: REPO_STATE,
+      model: "jev-latest",
+      questions: { q: JUDGEMENT, p: PROTECTED },
+    }),
+  );
+  assertEquals(res.status, 200);
+  const body = await res.json();
+  assertEquals(body, {
+    model: "jev-1.13-free",
+    answers: {
+      q: { type: "noul", noul: 0.5 },
+      p: { type: "noul", noul: 1 },
+    },
+    usage: { input_tokens: 100, output_tokens: 10 },
+  });
+  assertEquals(Object.keys(body.answers), ["q", "p"]);
+  assertEquals("p" in f.jevCalls[0].request.questions, false);
+});
+
+Deno.test("systemone: a Jev error wins even when some questions were answered locally", async () => {
+  const f = fake({
+    jev: () => {
+      throw new TypeSafeApiError("evaluation", 429, { error: "slow down" });
+    },
+  });
+  const res = await router(f.deps)(
+    post({
+      state: REPO_STATE,
+      model: "jev-latest",
+      questions: { q: JUDGEMENT, p: PROTECTED },
+    }),
+  );
+  assertEquals(res.status, 429);
+  assertEquals(await res.json(), { error: "slow down" });
+});

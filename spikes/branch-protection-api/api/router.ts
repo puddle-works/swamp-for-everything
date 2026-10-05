@@ -78,6 +78,23 @@ async function answerLocally(
   return answer;
 }
 
+/** Id of the extra question asked about caller question `id`. */
+const codeQuestionId = (id: string) => `__jev_router_could_be_code:${id}`;
+
+/** Asks Jev whether `question` could be answered exactly by code. */
+function codeQuestion(question: Question): Question {
+  const text = typeof question.instructions === "string"
+    ? question.instructions
+    : JSON.stringify(question.instructions);
+  return {
+    type: "noul",
+    instructions:
+      "Could this question be answered exactly by code, from facts available " +
+      "to a program (an API, a database, a fixed rule), without judgement? " +
+      `Question: ${JSON.stringify(text)}`,
+  };
+}
+
 export function router(
   deps: RouterDeps,
 ): (req: Request) => Promise<Response> {
@@ -117,14 +134,30 @@ export function router(
       });
     }
 
+    // Questions with no check at all: ask Jev if a check could be built.
+    const unchecked = Object.keys(forward).filter((id) =>
+      !findCheck(forward[id])
+    );
+    const extra = Object.fromEntries(
+      unchecked.map((id) => [codeQuestionId(id), codeQuestion(forward[id])]),
+    );
+
     let jev: SystemOneResponse;
     try {
-      jev = await deps.jev({ state, model, questions: forward }, bearer(req));
+      jev = await deps.jev(
+        { state, model, questions: { ...forward, ...extra } },
+        bearer(req),
+      );
     } catch (e) {
       if (e instanceof TypeSafeApiError) return json(e.status, e.body);
       return json(502, { error: (e as Error).message });
     }
     for (const id of Object.keys(forward)) answers[id] = jev.answers[id];
+
+    for (const id of unchecked) {
+      const a = jev.answers[codeQuestionId(id)];
+      if (a?.type === "noul") deps.log(`${id}: could be code ${a.noul}`);
+    }
 
     return json(200, {
       model: jev.model,
