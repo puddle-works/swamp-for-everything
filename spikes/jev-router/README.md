@@ -53,3 +53,6 @@ Other settings: `JEV_URL` (Jev's base URL, default the OpenCode Zen route),
 The full contract is an OpenAPI 3.1 document at
 [`api/openapi.json`](api/openapi.json), also served at `GET /openapi.json`.
 Anything else is a 404 (405 for the wrong method on a known path).
+
+What went well and badly building it:
+[swamp-diary-2026-10-05.md](swamp-diary-2026-10-05.md)
